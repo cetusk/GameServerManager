@@ -83,6 +83,7 @@ pub fn apply(text: &str, changes: &[(String, String)], world: bool) -> Result<St
         .parse::<toml_edit::DocumentMut>()
         .map_err(|_| "Invalid TOML / TOML形式が不正です")?;
     let mut seen = std::collections::BTreeSet::new();
+    let mut modified = false;
     for (key, value) in changes {
         if !fields.iter().any(|(k, _)| k == key) || !seen.insert(key) {
             return Err("Unsupported or duplicate field / 未対応または重複する項目です".into());
@@ -114,8 +115,15 @@ pub fn apply(text: &str, changes: &[(String, String)], world: bool) -> Result<St
             *next.decor_mut() = old.decor().clone();
         }
         *item = toml_edit::Item::Value(next);
+        modified = true;
     }
-    let result = doc.to_string();
+    // A no-op must preserve the original bytes, including Windows CRLFs.
+    // toml_edit normalizes line endings when serializing even without edits.
+    let result = if modified {
+        doc.to_string()
+    } else {
+        text.into()
+    };
     let verified = ConfigDocument::parse(result.clone()).map_err(|e| e.to_string())?;
     build_launch_plan(verified.settings()).map_err(|e| e.to_string())?;
     Ok(result)
@@ -185,6 +193,28 @@ mod tests {
         );
         let unchanged = apply(FIXTURE, &[("password".into(), String::new())], false).unwrap();
         assert_eq!(unchanged, FIXTURE);
+    }
+    #[test]
+    fn no_op_edits_preserve_lf_and_crlf_without_changing_credentials() {
+        let lf = FIXTURE.replace("\r\n", "\n");
+        for original in [&lf, &lf.replace('\n', "\r\n")] {
+            for changes in [
+                vec![],
+                vec![("password".into(), String::new())],
+                fields(original, false).unwrap(),
+                fields(original, true).unwrap(),
+            ] {
+                let world = changes.iter().any(|(key, _)| key.starts_with("mod_"));
+                assert_eq!(apply(original, &changes, world).unwrap(), *original);
+            }
+            let changed = apply(original, &[("port".into(), "2466".into())], false).unwrap();
+            let parsed = ConfigDocument::parse(changed).unwrap();
+            assert_eq!(parsed.settings().server.port, 2466);
+            assert_eq!(
+                parsed.settings().server.password.expose(),
+                "fixture-only-password"
+            );
+        }
     }
     #[test]
     fn invalid_connection_values_are_rejected_without_echoing_them() {
