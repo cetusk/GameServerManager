@@ -30,27 +30,46 @@ Currently, Valheim startup, joining, graceful shutdown and backup creation have 
 
 The Rust toolchain is pinned in [rust-toolchain.toml](https://github.com/cetusk/GameServerManager/blob/main/rust-toolchain.toml). Linux supports the mock GUI and tests; real server management requires Windows.
 
-## Launch
+## Build and run
 
-### From source
+### Release build
 
 Obtain the [repository](https://github.com/cetusk/GameServerManager) and run this command in PowerShell from its root directory:
+
+```powershell
+cargo build --release --locked -p manager-gui -p gsm-ctrlc-helper --all-features --target x86_64-pc-windows-msvc --target-dir target
+```
+
+The following files are generated, relative to the repository root:
+
+| File | Output path |
+|---|---|
+| Management application | `target\x86_64-pc-windows-msvc\release\manager-gui.exe` |
+| Graceful-shutdown helper | `target\x86_64-pc-windows-msvc\release\gsm-ctrlc-helper.exe` |
+
+### Run from a folder of your choice
+
+Copy **both executables into the same folder**, for example `D:\Apps\GameServerManager`. Keep the graceful-shutdown helper alongside the application. Images are embedded in the executable, so the `assets` folder is not required at runtime. Rust is not required to run the built application.
+
+Open PowerShell in that folder and specify an **absolute path** for management data:
+
+```powershell
+.\manager-gui.exe --backend local --data-dir 'D:\GameServerManagerData'
+```
+
+`--data-dir` stores registrations, app preferences and operation records. Game installation and world save paths are configured separately in the GUI. Use the same management data path on subsequent launches to retain your setup.
+
+For a launch script, copy `tools\start-packaged.ps1` from the source repository into the executable folder as `start-manager.ps1`, then run `.\start-manager.ps1`. Its default management data location is the `data` subfolder beside the executables.
+
+### Development build from source
+
+Run this command from the repository root:
 
 ```powershell
 .\run-manager.ps1
 ```
 
-This builds and launches the GUI and graceful-shutdown helper. Management data is stored in `.manager-data/`.
-
-### From a Windows ZIP package
-
-When a ZIP is available on [Releases](https://github.com/cetusk/GameServerManager/releases), extract it and run the following command from the extracted directory. Rust is not required to run the packaged application.
-
-```powershell
-.\start-manager.ps1
-```
-
-See the [development guide](docs/development.md) for packaging instructions.
+This builds and launches the GUI and graceful-shutdown helper in the development profile. Management data is stored in `.manager-data/`. See the [development guide](docs/development.md) for details.
 
 ## First-time setup
 

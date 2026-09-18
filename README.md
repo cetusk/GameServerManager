@@ -30,27 +30,46 @@ Windows上のゲームサーバーを、ひとつのGUIから管理するアプ�
 
 Rustのバージョンは [rust-toolchain.toml](https://github.com/cetusk/GameServerManager/blob/main/rust-toolchain.toml) で固定しています。Linuxでは模擬GUIとテストを実行できますが、実サーバー管理はWindows専用です。
 
-## 起動
+## ビルドと起動
 
-### ソースから起動する場合
+### リリースビルド
 
 [リポジトリ](https://github.com/cetusk/GameServerManager)を取得し、ルートフォルダーのPowerShellで実行します。
+
+```powershell
+cargo build --release --locked -p manager-gui -p gsm-ctrlc-helper --all-features --target x86_64-pc-windows-msvc --target-dir target
+```
+
+生成先はリポジトリのルートを基準に、次のとおりです。
+
+| ファイル | 生成パス |
+|---|---|
+| 管理アプリ | `target\x86_64-pc-windows-msvc\release\manager-gui.exe` |
+| 正常停止用ヘルパー | `target\x86_64-pc-windows-msvc\release\gsm-ctrlc-helper.exe` |
+
+### 任意のフォルダーに配置して起動
+
+生成した**2つのexeを同じフォルダー**へコピーします。配置先は任意です（例: `D:\Apps\GameServerManager`）。正常停止用ヘルパーもアプリと一緒に配置してください。画像はexeに埋め込まれているため、実行時に`assets`フォルダーをコピーする必要はありません。ビルド済みアプリの実行にRustは不要です。
+
+配置先のPowerShellで、管理データの保存先を**絶対パス**で指定して起動します。
+
+```powershell
+.\manager-gui.exe --backend local --data-dir 'D:\GameServerManagerData'
+```
+
+`--data-dir`は登録情報・アプリ設定・処理記録の保存先です。ゲーム本体やワールドの保存先はGUIで別途設定します。次回以降も同じ管理データを使う場合は、同じパスを指定してください。
+
+起動用スクリプトを使う場合は、ソースの`tools\start-packaged.ps1`をexeと同じフォルダーへ`start-manager.ps1`という名前でコピーし、`.\start-manager.ps1`を実行できます。既定の管理データ保存先は、そのフォルダー内の`data`です。
+
+### ソースから開発用ビルドで起動
+
+リポジトリのルートで実行します。
 
 ```powershell
 .\run-manager.ps1
 ```
 
-GUIと正常停止用ヘルパーをビルドして起動します。管理データは `.manager-data/` に保存されます。
-
-### Windows用ZIPを利用する場合
-
-[Releases](https://github.com/cetusk/GameServerManager/releases)で配布ZIPが公開されている場合は、展開先で実行します。配布版の実行にRustは不要です。
-
-```powershell
-.\start-manager.ps1
-```
-
-ZIPの作成方法は[開発ガイド](docs/development.md)を参照してください。
+GUIと正常停止用ヘルパーを開発用ビルドで起動します。管理データは `.manager-data/` に保存されます。詳細は[開発ガイド](docs/development.md)を参照してください。
 
 ## 最初の設定
 
