@@ -133,6 +133,7 @@ The detailed guides are currently in Japanese.
 - [Server settings and new configuration creation](docs/server-settings.md)
 - [Support status and limitations](docs/compatibility.md)
 - [Development, builds and tests](docs/development.md)
+- [Backlog and issue tracking](docs/backlog.md)
 - [Changelog](CHANGELOG.md)
 
 ## License and attribution

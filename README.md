@@ -132,6 +132,7 @@ SteamCMDは通常のSteamクライアントとは別のツールです。Steam�
 - [サーバー設定・新規作成](docs/server-settings.md)
 - [対応状況と制約](docs/compatibility.md)
 - [開発・ビルド・テスト](docs/development.md)
+- [今後の課題・棚卸し](docs/backlog.md)
 - [変更履歴](CHANGELOG.md)
 
 ## ライセンス・出典
