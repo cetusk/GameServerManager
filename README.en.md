@@ -18,8 +18,6 @@ We plan to continue adding server management support for more games.
 - Server startup and graceful shutdown; updates and installation through SteamCMD
 - World and configuration backups and restoration while the server is stopped
 - Create or register configuration files and edit game-specific settings in the GUI
-- Server logs with full-log copying, operation status and task history
-- Three dark themes and Japanese / English interface languages
 
 Currently, Valheim startup, joining, graceful shutdown, backup creation and SteamCMD update completion have been verified on a real server. Other games, restoration and the full new-server setup flow have not yet been verified on real Windows servers. See [support status and limitations](docs/compatibility.md).
 
@@ -29,8 +27,7 @@ Currently, Valheim startup, joining, graceful shutdown, backup creation and Stea
 - Hardware meeting each game's dedicated server requirements
 - SteamCMD for updates and installation (download it from App settings or select an existing `steamcmd.exe`)
 - For source builds: Rust via `rustup`, Visual Studio C++ Build Tools and the Windows SDK
-
-The Rust toolchain is pinned in [rust-toolchain.toml](https://github.com/cetusk/GameServerManager/blob/main/rust-toolchain.toml). Linux supports the mock GUI and tests; real server management requires Windows.
+- The Rust toolchain is pinned in [rust-toolchain.toml](https://github.com/cetusk/GameServerManager/blob/main/rust-toolchain.toml).
 
 ## Build and run
 
@@ -59,7 +56,7 @@ View or change it under **App settings → Data location**. This directory store
 
 The selected location is remembered in `%LOCALAPPDATA%\GameServerManager\data-location.json`. If the directory is unavailable, for example because a drive is disconnected, the app displays the directory chooser with an explanation.
 
-An explicit command-line path is still supported. It overrides the remembered location without replacing that preference:
+You can also specify the data directory explicitly on the command line. It overrides the remembered location without replacing that preference:
 
 ```powershell
 .\manager-gui.exe --backend local --data-dir 'D:\GameServerManagerData'
