@@ -37,10 +37,10 @@ The Rust toolchain is pinned in [rust-toolchain.toml](https://github.com/cetusk/
 Obtain the [repository](https://github.com/cetusk/GameServerManager) and run this command in PowerShell from its root directory:
 
 ```powershell
-cargo build --release --locked -p manager-gui -p gsm-ctrlc-helper --all-features --target x86_64-pc-windows-msvc --target-dir target
+.\build-release.bat
 ```
 
-The following files are generated, relative to the repository root:
+The script builds both the GUI and graceful-shutdown helper in release mode and prints their output paths on success. The following files are generated, relative to the repository root:
 
 | File | Output path |
 |---|---|
@@ -58,6 +58,8 @@ Open PowerShell in that folder and specify an **absolute path** for management d
 ```
 
 `--data-dir` stores registrations, app preferences and operation records. Game installation and world save paths are configured separately in the GUI. Use the same management data path on subsequent launches to retain your setup.
+
+The management data location currently cannot be changed inside the app. You can view the current path under **App settings → About**.
 
 For a launch script, copy `tools\start-packaged.ps1` from the source repository into the executable folder as `start-manager.ps1`, then run `.\start-manager.ps1`. Its default management data location is the `data` subfolder beside the executables.
 

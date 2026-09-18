@@ -41,6 +41,16 @@ env -u WAYLAND_DISPLAY xvfb-run -a -s '-screen 0 1360x1000x24' \
 
 ビルド出力を別の場所へ置く場合は `CARGO_TARGET_DIR` を指定できます。Windows向けの検証はWindows上で行います。Linuxでの型検査・模擬GUIの成功は、Windowsのリンクや実ゲーム動作を保証しません。
 
+## リリースビルド
+
+WindowsのPowerShellまたはコマンドプロンプトから実行します。
+
+```powershell
+.\build-release.bat
+```
+
+GUIと正常停止用ヘルパーを `target\x86_64-pc-windows-msvc\release\` に生成します。スクリプト自身のフォルダーを基準にビルドするため、別の作業フォルダーから実行しても生成先は変わりません。失敗時はエラーコードを返します。
+
 ## 配布用 ZIP
 
 ```powershell
@@ -48,6 +58,8 @@ env -u WAYLAND_DISPLAY xvfb-run -a -s '-screen 0 1360x1000x24' \
 ```
 
 `dist/GameServerManager-v0.1.0-windows-x64.zip` にGUI、helper、`start-manager.ps1`、日英README、操作ガイド、ライセンスと出典表示を含めます。既存の配布フォルダーにある利用者の data は ZIP に含めません。SQLite は同梱ビルド、Windows の HTTPS は Schannel を使用します。
+
+配布スクリプトも `build-release.bat` を使用してビルドします。
 
 [Windows CI](https://github.com/cetusk/GameServerManager/blob/main/.github/workflows/check.yml) は全体テスト・単独 feature・mock/local 空登録の GUI 起動・ZIP 作成を定義しています。CI 定義の追加と CI が実際に成功したことは区別してください。
 

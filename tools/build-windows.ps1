@@ -3,7 +3,7 @@ if ($env:OS -ne 'Windows_NT') { throw 'Run this script on Windows with Visual St
 $gameManagerRoot = Split-Path $PSScriptRoot -Parent
 Push-Location $gameManagerRoot
 try {
-    & cargo build --locked --release -p manager-gui -p gsm-ctrlc-helper --all-features --target x86_64-pc-windows-msvc --target-dir (Join-Path $gameManagerRoot 'target')
+    & (Join-Path $gameManagerRoot 'build-release.bat')
     if ($LASTEXITCODE -ne 0) { throw 'Windows build failed.' }
     $gameManagerManifest = Get-Content (Join-Path $gameManagerRoot 'Cargo.toml') -Raw
     $gameManagerVersion = [regex]::Match($gameManagerManifest, '(?m)^version = "([^"]+)"').Groups[1].Value

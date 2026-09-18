@@ -37,10 +37,10 @@ Rustのバージョンは [rust-toolchain.toml](https://github.com/cetusk/GameSe
 [リポジトリ](https://github.com/cetusk/GameServerManager)を取得し、ルートフォルダーのPowerShellで実行します。
 
 ```powershell
-cargo build --release --locked -p manager-gui -p gsm-ctrlc-helper --all-features --target x86_64-pc-windows-msvc --target-dir target
+.\build-release.bat
 ```
 
-生成先はリポジトリのルートを基準に、次のとおりです。
+GUIと正常停止用ヘルパーをまとめてリリースビルドし、完了時に生成先を表示します。生成先はリポジトリのルートを基準に、次のとおりです。
 
 | ファイル | 生成パス |
 |---|---|
@@ -58,6 +58,8 @@ cargo build --release --locked -p manager-gui -p gsm-ctrlc-helper --all-features
 ```
 
 `--data-dir`は登録情報・アプリ設定・処理記録の保存先です。ゲーム本体やワールドの保存先はGUIで別途設定します。次回以降も同じ管理データを使う場合は、同じパスを指定してください。
+
+現在、管理データの保存先をアプリ内で変更する機能はありません。「アプリ設定 → アプリ情報」で現在の保存先を確認できます。
 
 起動用スクリプトを使う場合は、ソースの`tools\start-packaged.ps1`をexeと同じフォルダーへ`start-manager.ps1`という名前でコピーし、`.\start-manager.ps1`を実行できます。既定の管理データ保存先は、そのフォルダー内の`data`です。
 
