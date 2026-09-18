@@ -2,6 +2,7 @@ mod background;
 mod features;
 mod feedback;
 mod navigation;
+mod steamcmd;
 use navigation::Destination;
 
 use crate::{
@@ -29,6 +30,7 @@ pub enum SessionExit {
 struct Session {
     app: Arc<Application>,
     registration: crate::registration::RegistrationPanel,
+    steamcmd: steamcmd::Panel,
     file_picker_open: bool,
     draft: BTreeSet<GameId>,
     query: String,
@@ -155,6 +157,15 @@ fn activity_label(label: &str, status: &JobStatus) -> (&'static str, String) {
 impl Session {
     fn refresh(&self, ui: &MainWindow) {
         let snapshot = self.app.snapshot();
+        self.steamcmd.refresh(
+            ui,
+            !self.registration.busy()
+                && !self.file_picker_open
+                && self.save_job.is_none()
+                && snapshot.instances.iter().all(|v| v.active.is_none()),
+            self.app.is_local() && cfg!(windows),
+            self.english(),
+        );
         ui.set_leave_visible(self.pending_navigation.is_some());
         ui.set_leave_busy(
             self.editor_receiver.is_some()
@@ -170,6 +181,7 @@ impl Session {
         ui.global::<AppPreferences>()
             .set_applying(self.import_receiver.is_some());
         let editor = ui.global::<ConfigEditor>();
+        editor.set_shared_steamcmd(self.steamcmd.default_path().into());
         let key = (
             snapshot
                 .instances
@@ -363,7 +375,8 @@ impl Session {
                 .into(),
         );
         ui.set_can_reload(
-            !self.registration.busy()
+            !self.steamcmd.busy()
+                && !self.registration.busy()
                 && !self.file_picker_open
                 && snapshot.instances.iter().all(|v| v.active.is_none()),
         );
@@ -518,7 +531,8 @@ impl Session {
             ui.set_backup_scope(
                 crate::language::scope(game.id.as_ref(), self.english(), game.backup_scope).into(),
             );
-            let idle = view.active.is_none()
+            let idle = !self.steamcmd.busy()
+                && view.active.is_none()
                 && !self.registration.busy()
                 && !self.file_picker_open
                 && self.editor_receiver.is_none()
@@ -613,7 +627,7 @@ impl Session {
         );
     }
     fn submit(&mut self, command: Command) {
-        if self.pending_restore.is_some() {
+        if self.steamcmd.busy() || self.pending_restore.is_some() {
             return;
         }
         if let Some(id) = self.active {
@@ -706,6 +720,7 @@ pub fn run(
     let session = Rc::new(RefCell::new(Session {
         app: app.clone(),
         registration,
+        steamcmd: steamcmd::Panel::new(std::path::Path::new(data_root), app.is_local()),
         file_picker_open: false,
         draft: config.enabled_games.iter().cloned().collect(),
         query: String::new(),
@@ -760,6 +775,7 @@ pub fn run(
         }
     }
     features::bind_features(&ui, &session);
+    steamcmd::bind(&ui, &session);
     macro_rules! handler {
         ($method:ident, |$state:ident| $body:block) => {{
             let state = session.clone();
@@ -1058,6 +1074,9 @@ pub fn run(
         state.pending_restore = None;
     });
     handler!(on_confirm_restore, |state| {
+        if state.steamcmd.busy() {
+            return;
+        }
         if let Some((instance, backup, _)) = state.pending_restore.take() {
             state.registration.activity = None;
             state.error = state
@@ -1079,8 +1098,10 @@ pub fn run(
             if let Some(ui) = weak.upgrade() {
                 let mut state = tick_state.borrow_mut();
                 state.registration.poll();
+                state.steamcmd.poll();
                 state.poll_features(&ui);
                 if state.registration.reload_ready
+                    && !state.steamcmd.busy()
                     && state.selection_receiver.is_none()
                     && state.transfer_receiver.is_none()
                     && state.import_receiver.is_none()
@@ -1123,7 +1144,8 @@ pub fn run(
     let close_session = session.clone();
     let weak = ui.as_weak();
     ui.window().on_close_requested(move || {
-        if close_session.borrow().selection_receiver.is_some()
+        if close_session.borrow().steamcmd.busy()
+            || close_session.borrow().selection_receiver.is_some()
             || close_session.borrow().transfer_receiver.is_some()
             || close_session.borrow().import_receiver.is_some()
             || close_session.borrow().copy_receiver.is_some()

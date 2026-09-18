@@ -21,6 +21,12 @@ Slint 1.18.0は独立したライセンスを持ちます。このWindowsデス�
 
 出典とハッシュは [ゲームアイコンの出典](apps/manager-gui/assets/game-icons/SOURCES.md) に記載しています。各ゲームの画像・名称・商標の権利はそれぞれの権利者に帰属します。ゲーム画像に本プロジェクトのMITライセンスを適用しません。
 
+## SteamCMD
+
+SteamCMDはValveが配布する独立したツールです。本アプリは利用者の操作に応じてValveのHTTPS配布元からダウンロードします。SteamCMDのバイナリをリポジトリやアプリの配布物に同梱せず、本プロジェクトのMITライセンスも適用しません。
+
+- [SteamCMDの案内](https://developer.valvesoftware.com/wiki/SteamCMD)
+
 ## その他の依存ライブラリ
 
 正確なバージョンは [Cargo.lock](Cargo.lock) に記録しています。各ライブラリの著作権表示とライセンスはそのパッケージに従います。依存関係は `cargo metadata --locked --format-version 1` で確認できます。

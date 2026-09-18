@@ -1,11 +1,22 @@
-import { VerticalBox, HorizontalBox, ScrollView, CheckBox, AboutSlint } from "std-widgets.slint";
-import { Theme, T, ActionButton, PageTab } from "components.slint";
+import { VerticalBox, HorizontalBox, ScrollView, CheckBox, AboutSlint, LineEdit } from "std-widgets.slint";
+import { Theme, T, ActionButton, PageTab, ActivityIcon } from "components.slint";
 export global AppPreferences {
     in-out property <bool> notify-completed: true;
     in-out property <bool> notify-failed: true;
     in-out property <bool> sound: false;
     in-out property <bool> remember-game: false;
     in-out property <bool> remember-tab: false;
+    in property <string> steamcmd-path;
+    in property <string> steamcmd-saved;
+    in property <string> steamcmd-status;
+    in property <string> steamcmd-phase;
+    in property <bool> steamcmd-busy;
+    in property <bool> steamcmd-supported;
+    in property <bool> steamcmd-can-work;
+    callback steamcmd-changed(string);
+    callback steamcmd-browse(bool);
+    callback steamcmd-apply(bool);
+    callback steamcmd-default();
     in property <string> info;
     in property <string> data-path;
     in property <bool> data-can-change;
@@ -27,11 +38,11 @@ export component PreferencesPage inherits Rectangle {
     VerticalBox {
         padding: 0px; spacing: 20px;
         Text { text: T.tr("アプリ設定", "App settings"); font-size: 26px; font-weight: 600; color: Theme.foreground; }
-        Text { text: T.tr("表示と通知を自分に合わせて調整します。", "Customize appearance and notifications."); color: Theme.muted; }
+        Text { text: T.tr("表示・通知・保存先と共通ツールを設定します。", "Configure appearance, notifications, data location and shared tools."); color: Theme.muted; }
         HorizontalBox {
             padding: 0px; spacing: 0px;
-            for title[index] in [T.tr("表示", "Appearance"), T.tr("通知", "Notifications"), T.tr("前回の記憶", "Remember"), T.tr("設定の移行", "Transfer"), T.tr("アプリ情報", "About"), T.tr("保存先", "Data location")]: PageTab {
-                text: title; selected: root.section == index; activated => { root.section = index; } navigate(delta) => { root.section = mod(root.section + delta + 6, 6); }
+            for title[index] in [T.tr("表示", "Appearance"), T.tr("通知", "Notifications"), T.tr("前回の記憶", "Remember"), T.tr("設定の移行", "Transfer"), T.tr("アプリ情報", "About"), T.tr("保存先", "Data location"), "SteamCMD"]: PageTab {
+                text: title; selected: root.section == index; activated => { root.section = index; } navigate(delta) => { root.section = mod(root.section + delta + 7, 7); }
             }
         }
         ScrollView { VerticalBox {
@@ -83,6 +94,35 @@ export component PreferencesPage inherits Rectangle {
                     ActionButton { enabled: !AppPreferences.transfer-busy; text: T.tr("キャンセル", "Cancel"); activated => { AppPreferences.cancel-import(); } }
                     ActionButton { enabled: !AppPreferences.transfer-busy; text: T.tr("この設定を適用", "Apply these settings"); primary: true; activated => { AppPreferences.apply-import(); } }
                 }
+            }
+            if root.section == 6: VerticalBox {
+                padding: 0px; spacing: 16px;
+                Text { text: T.tr("SteamCMD の共通設定", "Shared SteamCMD settings"); color: Theme.foreground; font-size: 16px; font-weight: 600; }
+                Text { text: T.tr("SteamCMD はゲームサーバーの更新・インストール用ツールです。通常の Steam とは別で、複数のゲームで共用できます。", "SteamCMD installs and updates game servers. It is separate from the Steam client and can be shared by multiple games."); color: Theme.muted; wrap: word-wrap; }
+                Text { text: T.tr("新しいサーバー設定では、このパスを初期入力します。各ゲームの SteamCMD 欄で個別に変更できます。既存のサーバー設定は上書きしません。", "New server configurations start with this path. Each game's SteamCMD field can override it. Existing server configurations remain unchanged."); color: Theme.muted; wrap: word-wrap; }
+                Text { text: T.tr("SteamCMD 実行ファイル（絶対パス）", "SteamCMD executable (absolute path)"); color: Theme.foreground; }
+                LineEdit { text: AppPreferences.steamcmd-path; enabled: !AppPreferences.steamcmd-busy;
+                    edited(value) => { AppPreferences.steamcmd-changed(value); }
+                }
+                HorizontalBox { padding: 0px; spacing: 10px;
+                    ActionButton { text: T.tr("既存の exe を選ぶ", "Choose existing EXE"); icon: "folder"; enabled: !AppPreferences.steamcmd-busy; activated => { AppPreferences.steamcmd-browse(true); } }
+                    ActionButton { text: T.tr("配置フォルダーを選ぶ", "Choose install folder"); icon: "folder"; enabled: !AppPreferences.steamcmd-busy; activated => { AppPreferences.steamcmd-browse(false); } }
+                    ActionButton { text: T.tr("既定候補に戻す", "Reset suggested path"); enabled: !AppPreferences.steamcmd-busy; activated => { AppPreferences.steamcmd-default(); } }
+                }
+                Text { text: T.tr("既定候補は C:\\steamcmd\\steamcmd.exe です。書き込み可能な別の場所にも変更できます。ダウンロードには空のフォルダーを指定してください。", "Suggested path: C:\\steamcmd\\steamcmd.exe. You can choose another writable location. Downloads require an empty folder."); color: Theme.muted; wrap: word-wrap; }
+                Text { text: T.tr("Valve の配布元から ZIP をダウンロードし、展開後に共通パスを保存します。既存ファイルは上書きしません。SteamCMD の初回自己更新はゲームサーバーの更新・インストール時に実行されます。", "Downloads the ZIP from Valve, extracts it and saves the shared path. Existing files are never overwritten. SteamCMD initializes and updates itself when you first install or update a game server."); color: Theme.muted; wrap: word-wrap; }
+                Text { text: "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip"; color: Theme.muted; wrap: word-wrap; }
+                HorizontalBox { padding: 0px; spacing: 10px;
+                    ActionButton { text: T.tr("このパスを保存", "Save this path"); enabled: AppPreferences.steamcmd-can-work; activated => { AppPreferences.steamcmd-apply(false); } }
+                    ActionButton { text: T.tr("ダウンロードして設定", "Download and configure"); icon: "download"; primary: true; enabled: AppPreferences.steamcmd-can-work; activated => { AppPreferences.steamcmd-apply(true); } }
+                }
+                if AppPreferences.steamcmd-saved != "": Text { text: T.tr("保存済みの共通パス: ", "Saved shared path: ") + AppPreferences.steamcmd-saved; color: Theme.muted; wrap: word-wrap; }
+                if AppPreferences.steamcmd-status != "": HorizontalBox { padding: 0px; spacing: 8px;
+                    ActivityIcon { phase: AppPreferences.steamcmd-phase; }
+                    Text { text: AppPreferences.steamcmd-status; color: AppPreferences.steamcmd-phase == "failed" ? #ff9daa : Theme.foreground; wrap: word-wrap; }
+                }
+                if !AppPreferences.steamcmd-supported: Text { text: T.tr("ダウンロードと保存は Windows の実管理モードで利用できます。", "Download and save are available in local management mode on Windows."); color: Theme.muted; wrap: word-wrap; }
+                if AppPreferences.steamcmd-supported && !AppPreferences.steamcmd-can-work && !AppPreferences.steamcmd-busy: Text { text: T.tr("サーバーの操作や設定登録が完了してから実行してください。", "Wait for server operations and registration to finish."); color: Theme.muted; wrap: word-wrap; }
             }
             if root.section == 5: VerticalBox {
                 padding: 0px; spacing: 16px;

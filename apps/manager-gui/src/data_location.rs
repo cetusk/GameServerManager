@@ -153,6 +153,8 @@ fn validate_and_remember(
     if prefs.try_exists()? {
         crate::preferences::Preferences::read(&prefs).map_err(anyhow::Error::msg)?;
     }
+    gsm_infra::steamcmd::read_setting(&gsm_infra::steamcmd::settings_path(store.root(), local))
+        .map_err(anyhow::Error::msg)?;
     let mut probe = tempfile::NamedTempFile::new_in(store.root())?;
     probe.write_all(b"GameServerManager write test\n")?;
     probe.as_file().sync_all()?;

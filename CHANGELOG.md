@@ -5,6 +5,7 @@
 初回公開版 / Initial public release.
 
 - 5ゲームのWindowsローカルサーバー管理 / Local Windows server management for five games.
+- SteamCMDの共通パス設定・ダウンロードとゲーム別の個別指定 / Shared SteamCMD defaults, download and per-server overrides.
 - 起動・正常停止・更新・バックアップ・復元 / Startup, graceful shutdown, updates, backups and restoration.
 - 設定の新規作成・登録・GUI編集 / Configuration creation, registration and GUI editing.
 - 初回起動時の管理データ保存先選択・記憶とGUIからの切り替え / First-run data directory setup, persistence and switching from app settings.

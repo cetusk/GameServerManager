@@ -10,6 +10,7 @@ export global ConfigEditor {
     in property <string> summary;
     in property <string> message;
     in property <string> notes;
+    in property <string> shared-steamcmd;
     callback browse(string);
     callback load(bool);
     callback changed(string, string);
@@ -25,7 +26,7 @@ export component EditorPanel inherits VerticalBox {
     Text { text: ConfigEditor.creating ? T.tr("新しいサーバーの設定", "New server configuration") : root.world ? T.tr("ワールドのパラメーター", "World parameters") : T.tr("サーバーの基本設定", "Server settings"); color: Theme.foreground; font-size: 16px; font-weight: 600; }
     if !ConfigEditor.creating: Text { text: T.tr("保存前に変更内容を確認し、元の設定をバックアップします。ゲームへの適用は次回起動時です。", "Review changes and back up the original before saving. Changes take effect the next time the server starts."); color: Theme.muted; wrap: word-wrap; }
     if !root.world && !ConfigEditor.creating: Text { text: T.tr("パスの変更は参照先の変更です。既存データは移動しません。変更前のバックアップ先に退避して保存します。", "Changing a path changes its reference; existing data is not moved. The pre-change backup folder is used for this save."); color: Theme.muted; wrap: word-wrap; }
-    if ConfigEditor.creating: Text { text: T.tr("設定ファイルの保存先と空のサーバー設置先を指定してください。SteamCMD は用意済みの実行ファイルを指定します。作成・登録後、「サーバー操作」からインストールできます。既存ファイルは上書きしません。", "Choose a new configuration file and an empty installation folder. Select an existing SteamCMD executable. After creating and registering, install from Controls. Existing files are never overwritten."); color: Theme.muted; wrap: word-wrap; }
+    if ConfigEditor.creating: Text { text: T.tr("設定ファイルの保存先と空のサーバー設置先を指定してください。SteamCMD はアプリ設定からダウンロードできます。作成・登録後、「サーバー操作」からインストールできます。既存ファイルは上書きしません。", "Choose a new configuration file and an empty installation folder. SteamCMD can be downloaded in App settings. After creating and registering, install from Controls. Existing files are never overwritten."); color: Theme.muted; wrap: word-wrap; }
     if ConfigEditor.creating && root.game == "valheim": Text { text: T.tr("新しいワールドの名前と空のワールド保存先を指定します。参加パスワードは5文字以上必要です。", "Choose a new world name and an empty save folder. The join password must contain at least 5 characters."); color: Theme.muted; wrap: word-wrap; }
     if ConfigEditor.creating && root.game == "arksa": Text { text: T.tr("正常停止用の管理者パスワードを入力してください。マップ名は例: TheIsland_WP。", "Enter an administrator password for graceful shutdown. Example map: TheIsland_WP."); color: Theme.muted; wrap: word-wrap; }
     if ConfigEditor.creating && (root.game == "windrose" || root.game == "satisfactory"): Text { text: T.tr("初回起動でゲーム自身が設定・ワールドを作成します。起動後は必要な初期設定をゲーム内で行い、このツールで停止して管理画面を再読み込みしてください。", "The game generates settings and world data on first start. Complete any in-game setup, stop from this tool, then reload the manager."); color: Theme.muted; wrap: word-wrap; }
@@ -52,6 +53,11 @@ export component EditorPanel inherits VerticalBox {
                 }
                 if field.path && !field.read-only: ActionButton { max-width: 110px; text: T.tr("参照…", "Browse…"); icon: "folder"; enabled: root.enabled && !ConfigEditor.busy; activated => { ConfigEditor.browse(field.key); } }
                 if field.options.length > 0: ComboBox { model: field.options; current-value: field.value; enabled: root.enabled && !ConfigEditor.busy; selected(value) => { ConfigEditor.changed(field.key, value); } }
+            }
+            if field.key == "steamcmd": HorizontalBox {
+                padding: 0px; spacing: 10px;
+                Text { text: T.tr("新規作成時はアプリ設定の初期値を入力します。この欄で個別指定できます。", "New configurations use the app default. Override it here for this server."); color: Theme.muted; wrap: word-wrap; }
+                ActionButton { max-width: 180px; text: T.tr("既定パスを入力", "Use default path"); enabled: root.enabled && !ConfigEditor.busy; activated => { ConfigEditor.changed(field.key, ConfigEditor.shared-steamcmd); } }
             }
             if field.secret && !ConfigEditor.creating: Text { text: T.tr("変更する場合のみ入力。空欄なら現在の値を維持します。", "Enter a value only to change it. Blank keeps the current value."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
             if field.key == "port" && root.game == "valheim": Text { text: T.tr("1024〜65534。変更後は接続先と、必要に応じてルーター・ファイアウォールの設定も合わせてください。", "1024–65534. Update the connection port and any router / firewall rules when changing this."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }

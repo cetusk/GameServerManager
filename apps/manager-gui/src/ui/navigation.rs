@@ -29,7 +29,8 @@ fn defer(
 }
 impl Session {
     pub(super) fn can_change_directory(&self) -> bool {
-        !self.registration.busy()
+        !self.steamcmd.busy()
+            && !self.registration.busy()
             && !self.file_picker_open
             && self.selection_receiver.is_none()
             && self.transfer_receiver.is_none()
@@ -118,7 +119,10 @@ impl Session {
             Destination::Page(page) => self.page = page,
             Destination::Preferences => self.preferences_open = !self.preferences_open,
             Destination::Create(game) => {
-                self.creation = Some(crate::creation::Draft::new(&game));
+                self.creation = Some(crate::creation::Draft::with_steamcmd(
+                    &game,
+                    self.steamcmd.default_path(),
+                ));
                 self.page = 1;
                 ui.global::<ConfigEditor>().set_message("".into());
             }

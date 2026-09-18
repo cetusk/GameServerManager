@@ -26,13 +26,19 @@ pub struct Plan {
 }
 pub type Reply = Result<Plan, String>;
 impl Draft {
+    #[cfg(test)]
     pub fn new(game: &str) -> Self {
+        Self::with_steamcmd(game, gsm_infra::steamcmd::DEFAULT_EXE)
+    }
+    pub fn with_steamcmd(game: &str, steamcmd: &str) -> Self {
         let mut schema = crate::catalog::creation_schema(game);
         schema.sort_by_key(|f| f.kind == Kind::Path);
         let values = schema
             .iter()
             .map(|f| {
-                let value = if f.kind == Kind::Secret {
+                let value = if f.id == "steamcmd" {
+                    steamcmd.into()
+                } else if f.kind == Kind::Secret {
                     String::new()
                 } else if ["name", "display_name", "profile_name"].contains(&f.id) {
                     format!("{game} Server")
@@ -215,6 +221,65 @@ mod tests {
             }
         }
         d
+    }
+    #[test]
+    fn every_game_uses_shared_default_and_keeps_individual_overrides() {
+        for game in crate::catalog::games() {
+            let id = game.id.to_string();
+            let common = "C:/Shared SteamCMD/steamcmd.exe";
+            let individual = "D:/Dedicated SteamCMD/steamcmd.exe";
+            let mut draft = Draft::with_steamcmd(&id, common);
+            assert_eq!(
+                draft
+                    .values
+                    .iter()
+                    .find(|(k, _)| k == "steamcmd")
+                    .unwrap()
+                    .1,
+                common
+            );
+            draft.change("steamcmd", individual.into());
+            assert_eq!(
+                draft
+                    .values
+                    .iter()
+                    .find(|(k, _)| k == "steamcmd")
+                    .unwrap()
+                    .1,
+                individual
+            );
+            let next = Draft::with_steamcmd(&id, "E:/NewShared/steamcmd.exe");
+            assert_eq!(
+                next.values.iter().find(|(k, _)| k == "steamcmd").unwrap().1,
+                "E:/NewShared/steamcmd.exe"
+            );
+            assert_eq!(
+                draft
+                    .values
+                    .iter()
+                    .find(|(k, _)| k == "steamcmd")
+                    .unwrap()
+                    .1,
+                individual
+            );
+            // The individual path must survive serialization and reach the runtime plan.
+            let mut ready = filled(&id);
+            ready.change("steamcmd", individual.into());
+            let plan = ready
+                .review(PathBuf::from("Z:/AppData"), vec![], false, false)
+                .unwrap();
+            let reg = Registration {
+                id: Default::default(),
+                game_id: game.id,
+                source_path: plan.source,
+                source_sha256: String::new(),
+            };
+            let spec = crate::catalog::resolve(&reg, &plan.documents["manager"]).unwrap();
+            assert_eq!(
+                spec.steamcmd.to_string_lossy().replace('\\', "/"),
+                individual
+            );
+        }
     }
     #[test]
     fn every_game_builds_new_settings_without_legacy_files_or_fake_world_ids() {

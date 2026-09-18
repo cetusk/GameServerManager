@@ -7,6 +7,9 @@
 /.manager-data/
 /.dev-data/
 data-location.json
+local-steamcmd.json
+mock-steamcmd.json
+.gsm-steamcmd.lock
 local-manager.lock
 mock-manager.lock
 local-registrations.lock

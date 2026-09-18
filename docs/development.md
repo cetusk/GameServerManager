@@ -86,3 +86,13 @@ GUIと正常停止用ヘルパーを `target\x86_64-pc-windows-msvc\release\` �
 引数なし/local起動の保存先記録はWindowsで`%LOCALAPPDATA%/GameServerManager/data-location.json`、LinuxのUI確認では`$XDG_CONFIG_HOME/GameServerManager/data-location.json`（未指定時は`$HOME/.config/`以下）です。mockはこの記録を読み書きしません。初回画面の確認は、テスト専用ユーザー設定ディレクトリを使用してください。
 
 保存先の選択・書き込み確認・既存設定の検証・記憶の保存はワーカーで行います。切り替え時はサーバー停止・ジョブ完了をGUIで確認し、元のセッションを終了・flushしてロックを解放した後に選択画面を開きます。選択の適用時に元の保存先ロックを取得し直し、未登録分を含む`instances`内のプロセス／操作／回復記録も確認します。新しい保存先はロック・管理設定・登録・アプリ設定・書き込み可能性を検証してから記憶します。キャンセルは元の保存先を再表示します。データのコピー・移動は行いません。
+
+### SteamCMDのダウンロード検証
+
+通常のworkspaceテストは人工ZIPと一時フォルダーを使い、ネットワークへ接続しません。Valve配布ZIPの取得・展開を確認する場合は、以下の任意テストを実行します。テストは一時フォルダーだけを使用し、取得したexeを実行しません。
+
+```powershell
+cargo test -p gsm-infra --locked downloads_official_bootstrap -- --ignored
+```
+
+Windowsの実機では、アプリ設定での保存先変更・既存exeの選択・ダウンロード進捗・再起動後の共通パス保持・5ゲームの新規作成時の初期入力・個別パスでの更新を確認します。模擬GUIではダウンロードと設定保存を無効化しています。

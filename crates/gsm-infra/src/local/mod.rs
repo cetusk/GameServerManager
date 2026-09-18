@@ -437,8 +437,9 @@ impl LocalBackend {
             }
             Command::Update => {
                 if !entry.spec.steamcmd.is_file() {
-                    return Err("指定した steamcmd.exe がありません".into());
+                    return Err("指定した steamcmd.exe がありません。アプリ設定 → SteamCMD で用意し、サーバー設定のパスを確認してください / SteamCMD is missing. Set it up in App settings → SteamCMD and check the server-specific path".into());
                 }
+                let _steamcmd_lease = crate::steamcmd::Lease::acquire(&entry.spec.steamcmd)?;
                 if entry.spec.save_targets.iter().any(|t| t.path.exists()) {
                     snapshots::create(&entry.spec)?;
                 }
@@ -451,6 +452,13 @@ impl LocalBackend {
                     .open(entry.state.join("steamcmd.log"))
                     .map_err(err)?;
                 let status = std::process::Command::new(&entry.spec.steamcmd)
+                    .current_dir(
+                        entry
+                            .spec
+                            .steamcmd
+                            .parent()
+                            .ok_or("SteamCMD folder is missing")?,
+                    )
                     .args(["+force_install_dir"])
                     .arg(&entry.spec.cwd)
                     .args([

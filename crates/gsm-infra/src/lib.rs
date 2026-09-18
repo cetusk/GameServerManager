@@ -1,6 +1,7 @@
 //! Storage for explicit mock-development roots. Never discovers old game data.
 pub mod local;
 pub mod registration;
+pub mod steamcmd;
 use fs2::FileExt;
 use gsm_domain::{AppConfig, CONFIG_VERSION, SettingsStore};
 use std::{

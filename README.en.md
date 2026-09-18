@@ -25,7 +25,7 @@ Currently, Valheim startup, joining, graceful shutdown and backup creation have 
 
 - Windows x64, managing servers on the same PC
 - Hardware meeting each game's dedicated server requirements
-- An existing `steamcmd.exe` for updates and installation
+- SteamCMD for updates and installation (download it from App settings or select an existing `steamcmd.exe`)
 - For source builds: Rust via `rustup`, Visual Studio C++ Build Tools and the Windows SDK
 
 The Rust toolchain is pinned in [rust-toolchain.toml](https://github.com/cetusk/GameServerManager/blob/main/rust-toolchain.toml). Linux supports the mock GUI and tests; real server management requires Windows.
@@ -86,6 +86,19 @@ Creation does not overwrite existing files. Some initial setup must be performed
 
 Change the interface language using **Language → 日本語 / English** in the bottom-left corner. Remembering the previous game and tab is disabled by default.
 
+### Set up SteamCMD
+
+SteamCMD is a separate tool from the Steam client; installing Steam does not install SteamCMD. One SteamCMD installation can serve multiple games, with a separate server installation folder for each game.
+
+1. Open **App settings → SteamCMD**.
+2. The suggested path is `C:\steamcmd\steamcmd.exe`. Use **Choose install folder** to select another writable location if needed.
+3. For a new installation, choose an empty folder and select **Download and configure**. The app downloads the ZIP from Valve, extracts it and saves the shared path. Existing files are never overwritten.
+4. If SteamCMD is already installed, use **Choose existing EXE → Save this path**.
+
+New server configurations start with the saved shared path, or the suggested path if none has been saved. **Each server uses its own SteamCMD field; changing the shared default does not update existing server configurations.** Use **Use default path** beside a server's field to copy in the current default.
+
+This downloads the SteamCMD bootstrap executable. SteamCMD initializes and updates itself when you first use **Update / install** for a game server. Use of the same SteamCMD installation is serialized. See the [SteamCMD guide](docs/steamcmd.md) for details and path references.
+
 ## Data handling
 
 ### Management data and game server configuration
@@ -95,6 +108,7 @@ Change the interface language using **Language → 日本語 / English** in the 
 | Contents | Location |
 |---|---|
 | Theme, language, notifications and navigation preferences | `local-preferences.json` in the management data directory |
+| Shared SteamCMD path used to prefill new server configurations | `local-steamcmd.json` in the management data directory |
 | Selected games and server metadata, including server and world names | `local-app.json` in the management data directory |
 | Registered configuration file paths, identifiers and hashes for detecting changes | `local-registrations.json` in the management data directory |
 | Started process identities, unfinished operations, and settings/restore recovery records | Under `instances/` in the management data directory |
@@ -103,7 +117,7 @@ Change the interface language using **Language → 日本語 / English** in the 
 
 Saving in **Server settings** or **World settings** updates the corresponding configuration files. Registration records do not duplicate configuration contents or passwords as normal settings. However, **while saving configuration changes, `instances/<server ID>/settings-undo.json` temporarily stores the full contents before and after the change, which may include passwords.** This record is removed after a successful save or recovery; interrupted operations can leave it in place for recovery.
 
-Copying only the management data directory does not back up the actual game configuration or worlds. Deleting it as though it contained only GUI preferences also removes registrations and recovery records. To transfer only app preferences, use export/import under **App settings → Transfer**.
+Copying only the management data directory does not back up the actual game configuration or worlds. Deleting it as though it contained only GUI preferences also removes registrations and recovery records. To transfer appearance, notifications and navigation preferences, use export/import under **App settings → Transfer**. The shared SteamCMD path is machine-specific and is excluded from this export.
 
 Backups and configuration changes require a stopped server. Changing a path does not move existing data. Closing the GUI does not automatically stop servers.
 
