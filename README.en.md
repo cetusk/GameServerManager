@@ -88,9 +88,26 @@ Change the interface language using **Language → 日本語 / English** in the 
 
 ## Data handling
 
+### Management data and game server configuration
+
+`.manager-data/` is the management data directory used by `run-manager.ps1`. When opening the EXE directly, the folder selected during first-run setup or under **App settings → Data location** serves the same purpose. **It stores more than GUI preferences: it also contains server registrations and records needed to manage servers safely.**
+
+| Contents | Location |
+|---|---|
+| Theme, language, notifications and navigation preferences | `local-preferences.json` in the management data directory |
+| Selected games and server metadata, including server and world names | `local-app.json` in the management data directory |
+| Registered configuration file paths, identifiers and hashes for detecting changes | `local-registrations.json` in the management data directory |
+| Started process identities, unfinished operations, and settings/restore recovery records | Under `instances/` in the management data directory |
+| Actual settings, such as ports, passwords, SteamCMD paths and world parameters | The `config.toml` or ARK profile specified when creating/registering a configuration, and game-specific INI/JSON files |
+| Game installations, worlds and backups | Their respective locations specified in Server settings |
+
+Saving in **Server settings** or **World settings** updates the corresponding configuration files. Registration records do not duplicate configuration contents or passwords as normal settings. However, **while saving configuration changes, `instances/<server ID>/settings-undo.json` temporarily stores the full contents before and after the change, which may include passwords.** This record is removed after a successful save or recovery; interrupted operations can leave it in place for recovery.
+
+Copying only the management data directory does not back up the actual game configuration or worlds. Deleting it as though it contained only GUI preferences also removes registrations and recovery records. To transfer only app preferences, use export/import under **App settings → Transfer**.
+
 Backups and configuration changes require a stopped server. Changing a path does not move existing data. Closing the GUI does not automatically stop servers.
 
-Game configurations and backups may contain passwords. Remove credentials, personal information and personal paths before attaching files or logs to an issue.
+Game configurations, backups and recovery records in the management data directory may contain passwords. Remove credentials, personal information and personal paths before attaching files or logs to an issue.
 
 ## Documentation
 
