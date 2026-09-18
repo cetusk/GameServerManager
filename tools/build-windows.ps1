@@ -18,7 +18,7 @@ try {
         Copy-Item $gameManagerFile $gameManagerDist -Force
     }
     # Keep documentation links valid and copy only reviewed public documents.
-    $gameManagerDocs = @('local-manager.md','native-ui.md','server-settings.md','compatibility.md','development.md','steamcmd.md','backlog.md')
+    $gameManagerDocs = @('local-manager.md','native-ui.md','server-settings.md','compatibility.md','development.md','steamcmd.md','backlog.md','configuration-design.md')
     New-Item -ItemType Directory -Force (Join-Path $gameManagerDist 'docs') | Out-Null
     foreach ($gameManagerDoc in $gameManagerDocs) {
         Copy-Item (Join-Path 'docs' $gameManagerDoc) (Join-Path $gameManagerDist 'docs') -Force

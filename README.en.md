@@ -134,6 +134,7 @@ The detailed guides are currently in Japanese.
 - [Support status and limitations](docs/compatibility.md)
 - [Development, builds and tests](docs/development.md)
 - [Backlog and issue tracking](docs/backlog.md)
+- [Manager and game configuration design](docs/configuration-design.md)
 - [Changelog](CHANGELOG.md)
 
 ## License and attribution
