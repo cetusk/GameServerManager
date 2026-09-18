@@ -40,19 +40,29 @@ pub fn recovery_source(
     }
     Ok(Some(source.before.clone()))
 }
-fn allowed(spec: &LocalServer, path: &Path) -> Result<(), String> {
+fn existing_key(path: &Path) -> Result<String, String> {
     validate(path)?;
-    if !spec.edit_files.iter().any(|p| key(p) == key(path))
-        || !spec
-            .save_targets
-            .iter()
-            .any(|t| key(path) == key(&t.path) || key(path).starts_with(&(key(&t.path) + "\\")))
+    // ConfigSource canonicalizes paths. On Windows this also expands 8.3 names
+    // (e.g. RUNNER~1), so stripping only the verbatim prefix is not sufficient.
+    let resolved = fs::canonicalize(path).map_err(|_| "Cannot resolve settings scope path")?;
+    validate(&resolved)?;
+    Ok(key(&resolved))
+}
+fn allowed(spec: &LocalServer, path: &Path) -> Result<String, String> {
+    let target = existing_key(path)?;
+    if !spec
+        .edit_files
+        .iter()
+        .any(|p| existing_key(p).is_ok_and(|k| k == target))
+        || !spec.save_targets.iter().any(|t| {
+            existing_key(&t.path).is_ok_and(|k| target == k || target.starts_with(&(k + "\\")))
+        })
     {
         return Err(
             "設定の編集・バックアップ対象外です / File is outside the editable backup scope".into(),
         );
     }
-    Ok(())
+    Ok(target)
 }
 pub fn prepare(
     spec: &LocalServer,
@@ -67,8 +77,8 @@ pub fn prepare(
     });
     let mut seen = BTreeSet::new();
     for write in &writes {
-        allowed(spec, &write.path)?;
-        if !seen.insert(key(&write.path)) {
+        let target = allowed(spec, &write.path)?;
+        if !seen.insert(target) {
             return Err("Duplicate settings target".into());
         }
         let file = ConfigSource::read(&write.path)?;
@@ -86,8 +96,11 @@ pub fn apply(spec: &LocalServer, state: &Path, writes: &[SettingsFileWrite]) -> 
         return Err("設定の回復が必要です / Recover settings first".into());
     }
     let mut undo = vec![];
+    let mut seen = BTreeSet::new();
     for write in writes {
-        allowed(spec, &write.path)?;
+        if !seen.insert(allowed(spec, &write.path)?) {
+            return Err("Duplicate settings target".into());
+        }
         let file = ConfigSource::read(&write.path)?;
         if file.digest() != write.expected_sha256 {
             return Err("Settings changed before saving / 保存前に設定が変更されました".into());
@@ -133,8 +146,7 @@ pub fn recover(spec: &LocalServer, state: &Path) -> Result<(), String> {
     let mut seen = BTreeSet::new();
     // Preflight every file before undoing any; never overwrite an external edit.
     for u in &undo {
-        allowed(spec, &u.path)?;
-        if !seen.insert(key(&u.path)) {
+        if !seen.insert(allowed(spec, &u.path)?) {
             return Err("Duplicate recovery target".into());
         }
         let current = ConfigSource::read(&u.path)?;
@@ -243,6 +255,59 @@ mod tests {
             "new-engine"
         );
         assert!(!pending(&state));
+    }
+    #[test]
+    fn resolved_paths_still_require_both_scopes_and_reject_duplicate_targets() {
+        let (dir, spec, mut change) = setup();
+        let state = dir.path().join("state");
+        let source = ConfigSource::read(&spec.edit_files[0]).unwrap();
+        let mut restricted = spec.clone();
+        restricted.edit_files.clear();
+        assert!(prepare(&restricted, source.path(), &change).is_err());
+        restricted = spec.clone();
+        restricted.save_targets.clear();
+        assert!(prepare(&restricted, source.path(), &change).is_err());
+
+        // Sharing a string prefix with a backed-up directory is insufficient.
+        let sibling = dir.path().join("settings-other/Game.ini");
+        fs::create_dir(sibling.parent().unwrap()).unwrap();
+        fs::write(&sibling, "old-secret").unwrap();
+        restricted = spec.clone();
+        restricted.edit_files.push(sibling.clone());
+        change.additional[0].path = sibling;
+        assert!(prepare(&restricted, source.path(), &change).is_err());
+
+        // Raw and canonical spellings of the same source cannot be written twice.
+        change.additional[0].path = source.path().into();
+        assert!(prepare(&spec, &spec.edit_files[0], &change).is_err());
+        let writes = vec![
+            SettingsFileWrite {
+                path: spec.edit_files[0].clone(),
+                expected_sha256: source.digest().into(),
+                contents: "new".into(),
+            },
+            SettingsFileWrite {
+                path: source.path().into(),
+                expected_sha256: source.digest().into(),
+                contents: "other".into(),
+            },
+        ];
+        assert!(apply(&spec, &state, &writes).is_err());
+        assert!(!pending(&state));
+        for path in &spec.edit_files {
+            assert_eq!(fs::read_to_string(path).unwrap(), "old-secret");
+        }
+    }
+    #[cfg(unix)]
+    #[test]
+    fn canonicalization_does_not_allow_symlinks_into_the_editable_scope() {
+        let (dir, spec, change) = setup();
+        let link = dir.path().join("linked-config.toml");
+        std::os::unix::fs::symlink(&spec.edit_files[0], &link).unwrap();
+        assert!(prepare(&spec, &link, &change).is_err());
+        let mut linked_scope = spec.clone();
+        linked_scope.edit_files[0] = link;
+        assert!(prepare(&linked_scope, &spec.edit_files[0], &change).is_err());
     }
     #[test]
     fn interrupted_batch_recovers_without_overwriting_external_edits() {
