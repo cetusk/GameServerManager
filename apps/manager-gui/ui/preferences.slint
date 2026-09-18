@@ -1,0 +1,96 @@
+import { VerticalBox, HorizontalBox, ScrollView, CheckBox, AboutSlint } from "std-widgets.slint";
+import { Theme, T, ActionButton, PageTab } from "components.slint";
+export global AppPreferences {
+    in-out property <bool> notify-completed: true;
+    in-out property <bool> notify-failed: true;
+    in-out property <bool> sound: false;
+    in-out property <bool> remember-game: false;
+    in-out property <bool> remember-tab: false;
+    in property <string> info;
+    in property <string> transfer-summary;
+    in property <bool> transfer-ready;
+    in property <bool> transfer-busy;
+    in property <bool> applying;
+    callback changed();
+    callback test-notification();
+    callback export-settings();
+    callback import-settings();
+    callback apply-import();
+    callback cancel-import();
+}
+export component PreferencesPage inherits Rectangle {
+    background: Theme.background;
+    private property <int> section: 0;
+    VerticalBox {
+        padding: 0px; spacing: 20px;
+        Text { text: T.tr("アプリ設定", "App settings"); font-size: 26px; font-weight: 600; color: Theme.foreground; }
+        Text { text: T.tr("表示と通知を自分に合わせて調整します。", "Customize appearance and notifications."); color: Theme.muted; }
+        HorizontalBox {
+            padding: 0px; spacing: 0px;
+            for title[index] in [T.tr("表示", "Appearance"), T.tr("通知", "Notifications"), T.tr("前回の記憶", "Remember"), T.tr("設定の移行", "Transfer"), T.tr("アプリ情報", "About")]: PageTab {
+                text: title; selected: root.section == index; activated => { root.section = index; } navigate(delta) => { root.section = mod(root.section + delta + 5, 5); }
+            }
+        }
+        ScrollView { VerticalBox {
+            padding: 20px; spacing: 18px; alignment: start;
+            if root.section == 0: VerticalBox {
+                padding: 0px; spacing: 16px;
+                Text { text: T.tr("テーマカラー", "Theme color"); color: Theme.foreground; font-size: 16px; font-weight: 600; }
+                Text { text: T.tr("すべてダークモードです。変更はその場で反映されます。", "All themes use dark mode. Changes apply immediately."); color: Theme.muted; wrap: word-wrap; }
+                HorizontalBox { padding: 0px; spacing: 14px;
+                    for title[index] in [T.tr("ターコイズ", "Turquoise"), T.tr("ブルー", "Blue"), T.tr("バイオレット", "Violet")]: Rectangle {
+                        height: 170px; border-radius: 10px; border-width: 1px;
+                        border-color: Theme.palette == index ? Theme.accent : Theme.border; background: Theme.surface;
+                        VerticalBox { padding: 16px; spacing: 16px;
+                            Rectangle { height: 65px; border-radius: 6px; background: Theme.background;
+                                Rectangle { x: 12px; y: 16px; width: parent.width - 24px; height: 8px; border-radius: 4px; background: index == 1 ? #78b4ff : index == 2 ? #bb9af7 : #56d7c3; }
+                                Rectangle { x: 12px; y: 36px; width: parent.width - 55px; height: 5px; border-radius: 3px; background: Theme.border; }
+                            }
+                            ActionButton { enabled: !AppPreferences.applying; text: title; primary: Theme.palette == index; activated => { Theme.palette = index; AppPreferences.changed(); } }
+                        }
+                    }
+                }
+
+            }
+            if root.section == 1: VerticalBox {
+                padding: 0px; spacing: 16px;
+                Text { text: T.tr("画面内の作業通知", "In-app job notifications"); color: Theme.foreground; font-size: 16px; font-weight: 600; }
+                CheckBox { enabled: !AppPreferences.applying; text: T.tr("作業完了を通知", "Notify when a job completes"); checked <=> AppPreferences.notify-completed; toggled => { AppPreferences.changed(); } }
+                CheckBox { enabled: !AppPreferences.applying; text: T.tr("作業失敗を通知", "Notify when a job fails"); checked <=> AppPreferences.notify-failed; toggled => { AppPreferences.changed(); } }
+                CheckBox { enabled: !AppPreferences.applying; text: T.tr("通知音（Windows のシステム音）", "Notification sound (Windows system sound)"); checked <=> AppPreferences.sound; toggled => { AppPreferences.changed(); } }
+                Text { text: T.tr("通知をオフにしても作業履歴は記録されます。", "Job history is recorded even when notifications are off."); color: Theme.muted; wrap: word-wrap; }
+                ActionButton { text: T.tr("通知を試す", "Test notification"); activated => { AppPreferences.test-notification(); } }
+            }
+            if root.section == 2: VerticalBox {
+                padding: 0px; spacing: 16px;
+                CheckBox { enabled: !AppPreferences.applying; text: T.tr("前回のゲームを開く", "Remember the last game"); checked <=> AppPreferences.remember-game; toggled => { AppPreferences.changed(); } }
+                CheckBox { enabled: !AppPreferences.applying; text: T.tr("前回のタブを開く", "Remember the last tab"); checked <=> AppPreferences.remember-tab; toggled => { AppPreferences.changed(); } }
+                Text { text: T.tr("記憶するのは表示画面だけです。サーバーを自動起動したり、実行中の作業を再開したりはしません。", "Only navigation is remembered. Servers and jobs are never started automatically."); color: Theme.muted; wrap: word-wrap; }
+            }
+            if root.section == 3: VerticalBox {
+                padding: 0px; spacing: 16px;
+                Text { text: T.tr("アプリ設定のエクスポート／インポート", "Export / import app settings"); color: Theme.foreground; font-size: 16px; font-weight: 600; }
+                Text { text: T.tr("テーマ・言語・通知・前回の記憶を移行します。サーバーの登録やパスワード、ワールドデータは含みません。", "Transfer theme, language, notifications and navigation preferences. Server registrations, passwords and world data are excluded."); color: Theme.muted; wrap: word-wrap; }
+                ActionButton { text: T.tr("設定をエクスポート", "Export settings"); icon: "download"; enabled: !AppPreferences.transfer-busy; activated => { AppPreferences.export-settings(); } }
+                ActionButton { text: T.tr("設定ファイルを選択", "Choose settings file"); icon: "folder"; enabled: !AppPreferences.transfer-busy; activated => { AppPreferences.import-settings(); } }
+                if AppPreferences.transfer-busy: Text { text: T.tr("設定ファイルを処理中…", "Processing settings file…"); color: Theme.accent; }
+                if AppPreferences.transfer-summary != "": Text { text: AppPreferences.transfer-summary; color: Theme.foreground; wrap: word-wrap; }
+                if AppPreferences.transfer-ready: HorizontalBox {
+                    padding: 0px;
+                    ActionButton { enabled: !AppPreferences.transfer-busy; text: T.tr("キャンセル", "Cancel"); activated => { AppPreferences.cancel-import(); } }
+                    ActionButton { enabled: !AppPreferences.transfer-busy; text: T.tr("この設定を適用", "Apply these settings"); primary: true; activated => { AppPreferences.apply-import(); } }
+                }
+            }
+            if root.section == 4: VerticalBox {
+                padding: 0px; spacing: 16px;
+                Text { text: "GameServerManager"; color: Theme.foreground; font-size: 16px; font-weight: 600; }
+                Text { text: T.tr("ゲームサーバー統合管理ツール", "Unified Game Server Management Tool"); color: Theme.muted; wrap: word-wrap; }
+                Text { text: AppPreferences.info; color: Theme.muted; wrap: word-wrap; }
+                Text { text: "MIT License · Copyright (c) 2026 cetusk"; color: Theme.muted; wrap: word-wrap; }
+                HorizontalBox { padding: 0px; alignment: start;
+                    AboutSlint { width: 220px; height: 132px; horizontal-stretch: 0; vertical-stretch: 0; }
+                }
+            }
+        } }
+    }
+}

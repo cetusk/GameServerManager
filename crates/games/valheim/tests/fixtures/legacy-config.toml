@@ -1,0 +1,16 @@
+# Artificial legacy fixture. No user's config or credential is included.
+[paths]
+steamcmd = 'C:\GsmFixture\SteamCMD\steamcmd.exe'
+server_dir = 'C:\GsmFixture\Server'
+save_dir = 'C:\GsmFixture\Data'
+backup_dir = 'C:\GsmFixture\Backups'
+log_file = 'C:\GsmFixture\Logs\server.log'
+
+[server]
+name = "Fixture Server"
+world = "Meadows"
+password = "fixture-only-password"
+port = 2456
+public = 0
+save_interval = 900
+backups = 4

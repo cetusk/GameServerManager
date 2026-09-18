@@ -1,0 +1,32 @@
+[workspace]
+resolver = "2"
+members = ["apps/manager-gui", "apps/ctrlc-helper", "crates/gsm-domain", "crates/gsm-application", "crates/gsm-infra", "crates/gsm-mock", "crates/games/*"]
+default-members = ["apps/manager-gui"]
+
+[workspace.package]
+version = "0.1.0"
+license = "MIT"
+repository = "https://github.com/cetusk/GameServerManager"
+edition = "2024"
+rust-version = "1.98"
+publish = false
+
+[workspace.dependencies]
+gsm-domain = { path = "crates/gsm-domain" }
+gsm-application = { path = "crates/gsm-application" }
+gsm-infra = { path = "crates/gsm-infra" }
+gsm-mock = { path = "crates/gsm-mock" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+thiserror = "2"
+anyhow = "1"
+tempfile = "3"
+fs2 = "0.4"
+slint = { version = "=1.18.0", default-features = false, features = ["std", "backend-winit", "renderer-software", "compat-1-2"] }
+slint-build = "=1.18.0"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

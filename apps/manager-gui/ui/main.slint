@@ -1,0 +1,477 @@
+import { VerticalBox, HorizontalBox, ScrollView, LineEdit, TextEdit } from "std-widgets.slint";
+import { Theme, ActionButton, GameIcon, ActivityIcon, PageTab, T, Glyph } from "components.slint";
+
+import { PreferencesPage, AppPreferences } from "preferences.slint";
+import { EditorPanel, ConfigEditor } from "editor.slint";
+export { T, Theme, AppPreferences, ConfigEditor }
+
+export struct GameRow { id: string, title: string, description: string, picked: bool, status: string }
+export struct GamePair { left: GameRow, right: GameRow }
+export struct BackupRow { id: string, label: string }
+export struct JobRow { phase: string, title: string, detail: string }
+
+component GameCard inherits Rectangle {
+    in property <GameRow> item;
+    in property <bool> enabled: true;
+    in property <bool> selection-mode: true;
+    callback activated(string);
+    height: 124px;
+    min-width: 0px; preferred-width: 360px; max-width: 400px; horizontal-stretch: 1;
+    border-radius: 10px; border-width: 1px;
+    border-color: root.selection-mode && root.item.picked ? Theme.accent : Theme.border;
+    background: area.pressed ? Theme.soft : root.selection-mode && root.item.picked ? Theme.soft : area.has-hover ? Theme.raised : Theme.surface;
+    accessible-role: button; accessible-label: root.item.title;
+    accessible-action-default => { if root.enabled { root.activated(root.item.id); } }
+    HorizontalLayout {
+        width: root.width; height: root.height;
+        padding: 18px; spacing: 14px;
+        if root.selection-mode: VerticalBox {
+            width: 23px; padding: 0px; alignment: center;
+            Rectangle {
+                width: 23px; height: 23px; border-radius: 6px; border-width: 1px; border-color: Theme.muted;
+                background: root.item.picked ? Theme.accent : transparent;
+                Text { text: root.item.picked ? "✓" : ""; color: Theme.ink; horizontal-alignment: center; vertical-alignment: center; }
+            }
+        }
+        VerticalBox {
+            padding: 0px; spacing: 5px; alignment: center; horizontal-stretch: 1;
+            Text { text: root.item.title; color: Theme.foreground; font-size: 16px; font-weight: 600; wrap: word-wrap; }
+            Text { text: root.item.description; color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+            if !root.selection-mode: Text { text: root.item.status; color: Theme.accent; font-size: 12px; }
+        }
+        VerticalBox { width: 56px; padding: 0px; alignment: center; GameIcon { game-id: root.item.id; } }
+    }
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if event.text == " " || event.text == "\n" { root.activated(root.item.id); return accept; }
+            return reject;
+        }
+    }
+    area := TouchArea { enabled: root.enabled; width: root.width; height: root.height; clicked => { focus.focus(); if root.enabled { root.activated(root.item.id); } } }
+    Rectangle { visible: focus.has-focus; border-width: 2px; border-color: Theme.accent; background: transparent; border-radius: 10px; }
+}
+
+export component MainWindow inherits Window {
+    icon: @image-url("../../../assets/generated/app-icon-256.png");
+    title: "GameServerManager";
+    in property <bool> local-mode;
+    in property <bool> setup-needed;
+    in property <bool> can-create;
+    in property <bool> creation-open;
+    callback new-configuration();
+    in property <bool> leave-visible;
+    in property <bool> leave-busy;
+    callback cancel-leave();
+    callback confirm-leave();
+    callback focus-leave-dialog();
+    focus-leave-dialog => { keep-editing.focus-control(); }
+
+    private property <bool> controls-enabled: !root.restore-visible && !ConfigEditor.confirming && !root.leave-visible;
+    in property <bool> preferences-open;
+    in property <bool> copy-busy;
+    in property <bool> selection-busy;
+    in property <string> notification;
+    callback toggle-preferences();
+    callback language-changed(bool);
+    callback copy-log();
+    callback dismiss-notification();
+    in property <bool> can-reload;
+    in property <bool> registration-allowed;
+    preferred-width: 1320px; preferred-height: 960px; min-width: 1040px; min-height: 700px;
+    background: Theme.background;
+    default-font-family: "Yu Gothic UI";
+    default-font-size: 14px;
+    in property <bool> choosing: true;
+    in property <bool> can-cancel: false;
+    in property <bool> can-apply: false;
+    in property <int> chosen-count;
+    in-out property <string> search-text;
+    in property <[GamePair]> catalog;
+    in property <[GameRow]> servers;
+    in property <[GamePair]> library;
+    in property <string> server-error;
+    in property <bool> suggest-update;
+    in property <string> failure-title;
+    in property <string> active-game;
+    in property <string> active-name;
+    in property <string> active-world;
+    in property <string> active-status;
+    in property <string> activity-phase;
+    in property <string> activity-text;
+    in property <string> backup-scope;
+    in property <bool> overview: true;
+    in property <int> page-index;
+    in property <bool> can-start;
+    in property <bool> can-stop;
+    in property <bool> can-backup;
+    in property <bool> can-restore;
+    in property <[BackupRow]> backups;
+    in property <string> logs;
+    in property <[JobRow]> jobs;
+    in property <string> error-text;
+    in property <string> data-root;
+    in property <bool> restore-visible;
+    in property <string> restore-description;
+    in property <bool> registration-supported;
+    in property <bool> registration-busy;
+    in property <bool> can-register;
+    in-out property <string> registration-path;
+    in property <string> registration-report;
+    in property <string> registration-saved;
+    callback registration-path-changed();
+    callback browse-registration();
+    callback review-registration();
+    callback commit-registration();
+    callback search-changed(string);
+    callback toggle-game(string);
+    callback apply-selection();
+    callback cancel-selection();
+    callback edit-selection();
+    callback open-game(string);
+    callback open-overview();
+    callback change-page(int);
+    callback start-server();
+    callback stop-server();
+    callback backup-server();
+    callback update-server();
+    callback recover-server();
+    callback edit-settings();
+    callback reload-registrations();
+    callback request-restore(string);
+    callback confirm-restore();
+    callback cancel-restore();
+
+    VerticalBox {
+        padding: 0px; spacing: 0px;
+        HorizontalBox {
+            padding: 0px; spacing: 0px;
+            Rectangle {
+                width: 232px; background: Theme.sidebar;
+                VerticalBox {
+                    padding: 18px; spacing: 12px;
+                    Image { source: @image-url("../../../assets/generated/logo-dark-trimmed.png"); height: 74px; image-fit: contain; }
+                    Text { text: T.tr("管理するゲーム", "Games you manage"); color: Theme.muted; font-size: 12px; }
+                    ActionButton { enabled: root.controls-enabled; text: T.tr("使用中のゲーム", "Your games"); activated => { root.open-overview(); } }
+                    ActionButton { enabled: root.controls-enabled; text: T.tr("ゲームを追加・変更", "Add / change games"); icon: "plus"; activated => { root.edit-selection(); } }
+                    Text { text: T.tr("登録サーバー", "Registered servers"); color: Theme.muted; font-size: 12px; }
+                    ScrollView { vertical-stretch: 1; VerticalBox { padding: 0px; spacing: 8px; alignment: start;
+                    for game in root.servers: Rectangle {
+                        height: 76px; border-radius: 8px; border-width: 1px;
+                        border-color: root.active-game == game.id && !root.overview && !root.preferences-open ? Theme.accent : Theme.border;
+                        background: server-area.pressed || (root.active-game == game.id && !root.overview && !root.preferences-open) ? Theme.soft : server-area.has-hover ? Theme.raised : transparent;
+                        HorizontalBox { padding: 8px; spacing: 10px; GameIcon { game-id: game.id; }
+                            VerticalBox { padding: 0px; spacing: 4px; alignment: center;
+                                Text { text: game.title; color: Theme.foreground; font-size: 14px; overflow: elide; }
+                                Text { text: game.status; color: Theme.muted; font-size: 12px; overflow: elide; }
+                            }
+                        }
+                        focus := FocusScope { enabled: root.controls-enabled; key-pressed(event) => { if event.text == " " || event.text == "\n" { root.open-game(game.id); return accept; } return reject; } }
+                        server-area := TouchArea { enabled: root.controls-enabled; width: parent.width; height: parent.height; clicked => { focus.focus(); root.open-game(game.id); } }
+                        Rectangle { visible: focus.has-focus; border-width: 2px; border-color: Theme.accent; background: transparent; border-radius: 8px; }
+                    }
+                    } }
+                    Text { text: "Language"; color: Theme.muted; font-size: 12px; }
+                    HorizontalBox { padding: 0px; spacing: 6px;
+                        ActionButton { enabled: root.controls-enabled && !AppPreferences.applying; min-width: 90px; text: "日本語"; primary: !T.english; activated => { root.language-changed(false); } }
+                        ActionButton { enabled: root.controls-enabled && !AppPreferences.applying; min-width: 90px; text: "English"; primary: T.english; activated => { root.language-changed(true); } }
+                    }
+                    ActionButton { enabled: root.controls-enabled; text: T.tr("アプリ設定", "App settings"); icon: "gear"; primary: root.preferences-open; activated => { root.toggle-preferences(); } }
+                    Text { text: root.local-mode ? T.tr("稼働状態を自動確認します\nバックアップは停止中に実行", "Status refreshes automatically.\nBack up while stopped.") : T.tr("状態・履歴・バックアップは\nこの起動中の模擬データです", "Status, history and backups\nare temporary mock data."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+                }
+            }
+            VerticalBox {
+                padding: 28px; spacing: 16px;
+                if root.preferences-open: PreferencesPage {}
+                if root.error-text != "": Rectangle {
+                    height: 80px; border-radius: 8px; background: #302127; border-color: #a95162; border-width: 1px;
+                    HorizontalBox { padding: 12px; spacing: 10px; ActivityIcon { phase: "failed"; } ScrollView { Text { text: root.error-text; color: #ffb6bd; wrap: word-wrap; } } }
+                }
+                if root.choosing && !root.preferences-open: VerticalBox {
+                    padding: 0px; spacing: 16px;
+                    Text { text: "GameServerManager / YOUR LIBRARY"; color: Theme.muted; font-size: 12px; }
+                    Text { text: T.tr("使用するゲームを選択", "Choose your games"); color: Theme.foreground; font-size: 26px; font-weight: 600; }
+                    Text { text: T.tr("選んだゲームだけを管理画面に表示します。複数選択できます。", "Only selected games appear in the manager. Select one or more."); color: Theme.muted; }
+                    LineEdit { enabled: !root.selection-busy; text <=> root.search-text; placeholder-text: T.tr("ゲーム名で検索", "Search games"); edited(text) => { root.search-changed(text); } }
+                    ScrollView {
+                        vertical-stretch: 1;
+                        VerticalBox {
+                            padding: 0px; spacing: 12px; alignment: start;
+                            for pair in root.catalog: HorizontalBox {
+                                padding: 0px; spacing: 12px; alignment: start;
+                                GameCard { enabled: root.controls-enabled && !root.selection-busy; item: pair.left; activated(id) => { root.toggle-game(id); } }
+                                if pair.right.id != "": GameCard { enabled: root.controls-enabled && !root.selection-busy; item: pair.right; activated(id) => { root.toggle-game(id); } }
+                            }
+                            if root.catalog.length == 0: Text { text: T.tr("該当するゲームがありません。検索語を変更してください。", "No games found. Try a different search."); color: Theme.muted; }
+                        }
+                    }
+                    HorizontalBox {
+                        padding: 0px;
+                        Text { text: root.chosen-count + T.tr(" 件を選択中", " selected"); color: Theme.foreground; vertical-alignment: center; horizontal-stretch: 1; }
+                        if root.can-cancel: ActionButton { enabled: root.controls-enabled; text: T.tr("キャンセル", "Cancel"); activated => { root.cancel-selection(); } }
+                        ActionButton { text: root.selection-busy ? T.tr("選択を保存中…", "Saving selection…") : T.tr("選んだゲームで始める", "Use selected games"); enabled: root.controls-enabled && !root.selection-busy && (root.can-apply); primary: true; min-width: 190px; activated => { root.apply-selection(); } }
+                    }
+                    Text { text: T.tr("選択は後から変更できます。選択解除によるサーバー停止やデータ削除はありません。", "You can change this later. Deselecting a game does not stop servers or delete data."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+                }
+                if !root.choosing && root.overview && !root.preferences-open: VerticalBox {
+                    padding: 0px; spacing: 16px;
+                    Text { text: T.tr("使用中のゲーム", "Your games"); font-size: 26px; font-weight: 600; color: Theme.foreground; }
+                    Text { text: T.tr("操作するサーバーを選択してください。", "Choose a server to manage."); color: Theme.muted; }
+                    ScrollView {
+                        VerticalBox {
+                            padding: 0px; spacing: 12px; alignment: start;
+                            if root.library.length == 0: Text { text: T.tr("使用中のゲームはありません。「ゲームを追加・変更」から選択してください。", "No games selected. Use Add / change games to choose them."); color: Theme.muted; wrap: word-wrap; }
+                            for pair in root.library: HorizontalBox {
+                                padding: 0px; spacing: 12px; alignment: start;
+                                GameCard { enabled: root.controls-enabled; item: pair.left; selection-mode: false; activated(id) => { root.open-game(id); } }
+                                if pair.right.id != "": GameCard { enabled: root.controls-enabled; item: pair.right; selection-mode: false; activated(id) => { root.open-game(id); } }
+                            }
+                        }
+                    }
+                }
+                if !root.choosing && !root.overview && !root.preferences-open: VerticalBox {
+                    padding: 0px; spacing: 14px;
+                    HorizontalBox {
+                        padding: 0px;
+                        VerticalBox {
+                            padding: 0px;
+                            Text { text: T.tr("サーバー名", "Server name"); color: Theme.muted; font-size: 12px; }
+                            Text { text: root.active-name; color: Theme.foreground; font-size: 26px; font-weight: 600; wrap: word-wrap; }
+                            Text { text: T.tr("ワールド: ", "World: ") + root.active-world + "   |   " + root.active-status; color: Theme.muted; }
+
+                        }
+                        GameIcon { game-id: root.active-game; }
+                    }
+                    Rectangle {
+                        height: 66px; background: Theme.surface; border-width: 1px; border-color: Theme.border; border-radius: 9px;
+                        HorizontalBox { padding: 16px; spacing: 12px;
+                            ActivityIcon { phase: root.activity-phase; }
+                            Text { text: root.activity-text; color: Theme.foreground; vertical-alignment: center; wrap: word-wrap; min-width: 0px; horizontal-stretch: 1; }
+                        }
+                    }
+                    if root.server-error != "": Rectangle {
+                        height: 172px; background: #302127; border-width: 1px; border-color: #a95162; border-radius: 9px;
+                        VerticalBox { padding: 12px; spacing: 8px;
+                            HorizontalBox { padding: 0px; spacing: 8px;
+                                ActivityIcon { phase: "failed"; }
+                                Text { text: root.failure-title; min-width: 0px; overflow: elide; color: #ffb6bd; font-weight: 600; vertical-alignment: center; horizontal-stretch: 1; }
+                            }
+                            ScrollView { vertical-stretch: 1; Text { text: root.server-error; color: Theme.foreground; wrap: word-wrap; } }
+                            if root.suggest-update: Text { text: T.tr("サーバーを停止して更新し、ゲーム側のバージョン・ブランチ・MOD も確認してください。", "Stop and update the server; also check the game's version, branch and mods."); color: #ffb6bd; font-size: 12px; wrap: word-wrap; }
+                            HorizontalBox { padding: 0px; spacing: 8px; alignment: start;
+                                ActionButton { text: T.tr("ログを確認", "View logs"); enabled: root.controls-enabled; activated => { root.change-page(4); } }
+                                if root.suggest-update: ActionButton { text: T.tr("サーバーを更新", "Update server"); icon: "download"; enabled: root.controls-enabled && root.can-start; activated => { root.update-server(); } }
+                            }
+                        }
+                    }
+                    VerticalBox {
+                        padding: 0px; spacing: 0px;
+                        if root.setup-needed: Rectangle {
+                            background: Theme.soft; border-width: 1px; border-color: Theme.accent; border-radius: 10px; min-height: 116px;
+                            VerticalBox { padding: 16px; spacing: 8px;
+                                Text { text: T.tr("最初にサーバー設定が必要です", "Set up this server first"); color: Theme.accent; font-size: 16px; font-weight: 600; }
+                                Text { text: T.tr("新しく始める場合は「新規作成」、既存サーバーを使う場合は「設定ファイルの登録」から設定してください。完了すると起動・インストールなどを使えます。", "Create a new configuration, or register an existing server configuration. This enables installation and server operations."); color: Theme.foreground; wrap: word-wrap; }
+                                if root.page-index != 1: ActionButton { text: T.tr("サーバー設定を開く", "Open server settings"); primary: true; enabled: root.controls-enabled; activated => { root.change-page(1); } }
+                            }
+                        }
+                        // Match the 14px gap above the setup notice without separating tabs from their panel.
+                        if root.setup-needed: Rectangle { height: 14px; vertical-stretch: 0; }
+                        HorizontalBox {
+                            padding: 0px; spacing: 4px;
+                            for title[index] in [T.tr("サーバー操作", "Controls"), T.tr("サーバー設定", "Server settings"), T.tr("ワールド設定", "World settings"), T.tr("バックアップ", "Backup"), T.tr("ログ", "Logs")]: PageTab { enabled: root.controls-enabled; text: title; selected: root.page-index == index; activated => { root.change-page(index); } navigate(delta) => { root.change-page(mod(root.page-index + delta + 5, 5)); } }
+                        }
+                        Rectangle {
+                            background: Theme.surface; border-width: 1px; border-color: Theme.border; border-radius: 10px; vertical-stretch: 1;
+                            VerticalBox {
+                                padding: 20px; spacing: 12px;
+                                if root.page-index == 0: ScrollView { VerticalBox {
+                                    padding: 0px; spacing: 24px; alignment: start;
+                                    Text { text: T.tr("サーバー操作", "Server controls"); color: Theme.foreground; font-size: 16px; font-weight: 600; }
+                                    HorizontalBox {
+                                        padding: 0px; spacing: 24px;
+                                        Rectangle { background: Theme.background; border-width: 1px; border-color: Theme.border; border-radius: 9px; horizontal-stretch: 1;
+                                            VerticalBox { padding: 24px; spacing: 16px;
+                                                Text { text: T.tr("起動・停止", "Start / stop"); color: Theme.foreground; font-size: 16px; font-weight: 600; }
+                                                Text { text: T.tr("サーバーの現在の状態を確認して操作します。", "Check the server status before running an operation."); color: Theme.muted; wrap: word-wrap; }
+                                                HorizontalBox { padding: 0px; spacing: 10px; alignment: start;
+                                                    ActionButton { text: T.tr("サーバーを起動", "Start server"); icon: "play"; enabled: root.controls-enabled && (root.can-start); primary: true; activated => { root.start-server(); } }
+                                                    ActionButton { text: T.tr("停止", "Stop"); icon: "stop"; enabled: root.controls-enabled && (root.can-stop); activated => { root.stop-server(); } }
+                                                }
+                                                Text { text: root.local-mode ? T.tr("停止時はワールドを保存してから終了します。", "Stopping requests a world save and graceful shutdown.") : T.tr("模擬操作です。実ファイルは変更しません。", "Simulated operations. Real files are unchanged."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+                                            }
+                                        }
+                                        VerticalBox { padding: 8px; spacing: 16px; min-width: 230px; horizontal-stretch: 1; alignment: start;
+                                            Text { text: T.tr("ワールド", "World"); color: Theme.muted; font-size: 12px; }
+                                            Text { text: root.active-world; color: Theme.foreground; wrap: word-wrap; }
+                                            Rectangle { height: 1px; background: Theme.border; }
+                                            Text { text: T.tr("現在の状態", "Current status"); color: Theme.muted; font-size: 12px; }
+                                            Text { text: root.active-status; color: Theme.foreground; }
+                                            Rectangle { height: 1px; background: Theme.border; }
+                                            Text { text: T.tr("バックアップの対象", "Backup scope"); color: Theme.muted; font-size: 12px; }
+                                            Text { text: root.backup-scope; color: Theme.foreground; wrap: word-wrap; }
+                                        }
+                                    }
+                                    if root.local-mode: VerticalBox {
+                                        padding: 0px; spacing: 14px;
+                                        Rectangle { height: 1px; background: Theme.border; }
+                                        Text { text: T.tr("サーバーファイルの更新", "Server file updates"); color: Theme.foreground; font-size: 16px; font-weight: 600; }
+                                        Text { text: T.tr("停止中に SteamCMD で更新・インストールします。", "Update or install via SteamCMD while stopped."); color: Theme.muted; wrap: word-wrap; }
+                                        HorizontalBox { padding: 0px; spacing: 12px; alignment: start;
+                                            ActionButton { text: T.tr("更新・インストール", "Update / install"); icon: "download"; enabled: root.controls-enabled && (root.can-backup); activated => { root.update-server(); } }
+                                            ActionButton { text: T.tr("管理画面を再読み込み", "Reload manager"); icon: "refresh"; enabled: root.controls-enabled && (root.can-reload); activated => { root.reload-registrations(); } }
+                                        }
+                                        Text { text: T.tr("更新・復元後は管理画面を再読み込みします。稼働中はプロセスの存在を示します。接続可否はゲーム内で確認してください。", "Reload the manager after updating or restoring. Running indicates the process exists; check connectivity in the game."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+                                    }
+                                } }
+                                if root.page-index == 1 && root.registration-supported: ScrollView { VerticalBox {
+                                    padding: 0px; spacing: 10px;
+                                    if root.can-create && !root.creation-open: ActionButton { text: T.tr("新規作成", "Create new configuration"); icon: "plus"; primary: root.setup-needed; enabled: root.controls-enabled; activated => { root.new-configuration(); } }
+                                    if !root.setup-needed || root.creation-open: EditorPanel { game: root.active-game; world: false; enabled: root.controls-enabled && (root.creation-open || root.can-backup); }
+                                    Rectangle { height: 1px; background: Theme.border; }
+                                    Text { text: T.tr("設定ファイルの登録", "Register configuration file"); color: Theme.foreground; font-size: 16px; }
+                                    Text { text: root.local-mode ? T.tr("ファイルを選択 → 内容を確認 → 登録して反映。登録後、管理画面を自動で開き直します。", "Choose a file → review → register and apply. The manager reopens automatically after registration.") : T.tr("旧設定を検証して登録できます。模擬モードでは実サーバーは操作しません。", "Review and register an existing configuration. Mock mode does not control real servers."); color: Theme.muted; wrap: word-wrap; min-width: 0px; }
+                                    Text { text: root.registration-saved; color: Theme.muted; font-size: 12px; wrap: word-wrap; min-width: 0px; }
+                                    HorizontalBox {
+                                        padding: 0px; spacing: 10px;
+                                        LineEdit { horizontal-stretch: 1; text <=> root.registration-path; enabled: !root.registration-busy && root.registration-allowed; placeholder-text: root.active-game == "arksa" ? T.tr("Profile/*.ini の絶対パス", "Absolute path to Profile/*.ini") : T.tr("config.toml の絶対パス", "Absolute path to config.toml"); edited(text) => { root.registration-path-changed(); } }
+                                        ActionButton { text: T.tr("参照…", "Browse…"); icon: "folder"; enabled: root.controls-enabled && (!root.registration-busy && root.registration-allowed); activated => { root.browse-registration(); } }
+                                    }
+                                    HorizontalBox {
+                                        padding: 0px; spacing: 10px;
+                                        ActionButton { text: root.registration-busy ? T.tr("処理中…", "Working…") : T.tr("設定を読み込んで確認", "Load and review settings"); enabled: root.controls-enabled && (!root.registration-busy && root.registration-allowed); activated => { root.review-registration(); } }
+                                        ActionButton { text: T.tr("登録して反映", "Register and apply"); icon: "check"; primary: true; enabled: root.controls-enabled && (root.can-register && !root.registration-busy); activated => { root.commit-registration(); } }
+                                    }
+                                    if root.local-mode && root.active-game != "valheim": ActionButton { text: T.tr("元の設定をバックアップして編集", "Back up and edit original settings"); enabled: root.controls-enabled && (root.can-backup); activated => { root.edit-settings(); } }
+                                    if root.local-mode && root.active-game != "valheim": Text { text: T.tr("編集はメモ帳で行います。保存してエディターを閉じた後、設定を再検証・登録してください。", "Edit in Notepad, save and close it, then review and register the settings again."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+                                    TextEdit { text: root.registration-report; read-only: true; height: 140px; }
+                                } }
+                                if root.page-index == 1 && !root.registration-supported: Text { text: T.tr("このゲームの設定登録・編集はまだ対応していません。", "Settings registration and editing are unavailable for this game."); color: Theme.muted; wrap: word-wrap; }
+                                if root.page-index == 2: ScrollView { VerticalBox { padding: 0px; spacing: 18px; alignment: start;
+                                    Text { text: T.tr("ワールド: ", "World: ") + root.active-world; color: Theme.foreground; font-size: 16px; }
+                                    if root.active-game == "valheim": EditorPanel { game: root.active-game; world: true; enabled: root.controls-enabled && root.can-backup; }
+                                    if root.active-game != "valheim": Text { text: T.tr("このゲームのワールド項目は元の設定ファイルで編集します。「サーバー設定」から元の設定をバックアップして編集してください。", "Edit this game's world options in the original configuration file. Open Server settings to back up and edit it."); color: Theme.muted; wrap: word-wrap; }
+                                } }
+                                if root.page-index == 3: VerticalBox {
+                                    padding: 0px; spacing: 10px;
+                                    Text { text: T.tr("ワールドと設定のバックアップ", "World and settings backups"); color: Theme.foreground; font-size: 16px; }
+                                    Text { text: root.backup-scope; color: Theme.muted; wrap: word-wrap; }
+                                    Text { text: root.local-mode ? T.tr("停止中に作成・復元できます。復元前に現在のデータを退避し、復元後も停止を維持します。", "Create or restore while stopped. Current data is backed up before restoring. The server remains stopped.") : T.tr("停止中に模擬作成・復元できます。実ファイルは保存されません。", "Simulate backup and restore while stopped. No real files are saved."); color: Theme.muted; wrap: word-wrap; }
+                                    HorizontalBox {
+                                        padding: 0px; spacing: 10px; alignment: start;
+                                        ActionButton { text: T.tr("バックアップを作成", "Create backup"); icon: "download"; min-width: 180px; primary: true; enabled: root.controls-enabled && (root.can-backup); activated => { root.backup-server(); } }
+                                        if root.local-mode: ActionButton { text: T.tr("中断した作業の復旧", "Recover interrupted job"); icon: "refresh"; min-width: 170px; enabled: root.controls-enabled && (root.can-backup); activated => { root.recover-server(); } }
+                                    }
+                                    ScrollView {
+                                        VerticalBox {
+                                            padding: 0px;
+                                            for backup in root.backups: HorizontalBox {
+                                                Text { text: backup.label; color: Theme.foreground; vertical-alignment: center; wrap: word-wrap; }
+                                                ActionButton { text: T.tr("復元内容を確認", "Review restore"); enabled: root.controls-enabled && (root.can-restore); activated => { root.request-restore(backup.id); } }
+                                            }
+                                            if root.backups.length == 0: Text { text: T.tr("まだバックアップがありません。", "No backups yet."); color: Theme.muted; }
+                                        }
+                                    }
+                                }
+                                if root.page-index == 4: VerticalBox { padding: 0px; spacing: 12px;
+                                    HorizontalBox { padding: 0px;
+                                        Text { text: T.tr("サーバーログ", "Server log"); color: Theme.foreground; font-size: 16px; vertical-alignment: center; horizontal-stretch: 1; }
+                                        ActionButton { text: root.copy-busy ? T.tr("読み込み中…", "Reading…") : T.tr("全文をコピー", "Copy full log"); icon: "copy"; enabled: root.controls-enabled && (!root.copy-busy); activated => { root.copy-log(); } }
+                                    }
+                                    Text { text: T.tr("表示は末尾部分です。全文コピーは対象ログファイル全体を取得します（機密値は非表示）。", "The view shows recent lines. Copy reads the entire log file (secrets are redacted)."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+                                    TextEdit { text: root.logs; read-only: true; }
+                                }
+                            }
+                        }
+                    }
+                }
+                if !root.choosing && !root.preferences-open: VerticalBox {
+                    padding: 0px; spacing: 6px; height: min(150px, max(64px, root.jobs.length * 56px + 30px));
+                    Text { text: T.tr("全体の作業履歴", "All job history") + " · " + root.jobs.length; color: Theme.foreground; font-weight: 600; }
+                    ScrollView {
+                        VerticalBox {
+                            padding: 0px; spacing: 6px;
+                            if root.jobs.length == 0: Text { text: T.tr("まだ操作していません。", "No jobs yet."); color: Theme.muted; }
+                            for job in root.jobs: Rectangle {
+                                background: Theme.surface; border-radius: 6px;
+                                HorizontalBox {
+                                    padding: 8px; spacing: 10px;
+                                    ActivityIcon { phase: job.phase; }
+                                    VerticalBox {
+                                        padding: 0px; spacing: 3px;
+                                        Text { text: job.title; color: Theme.foreground; wrap: word-wrap; min-width: 0px; }
+                                        Text { text: job.detail; color: job.phase == "failed" ? #ff9daa : Theme.muted; font-size: 12px; wrap: word-wrap; min-width: 0px; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Text { text: T.tr("ゲームサーバー統合管理ツール", "Unified Game Server Management Tool"); color: Theme.muted; font-size: 12px; }
+            }
+        }
+    }
+    if root.notification != "": Rectangle {
+        x: max(240px, parent.width - 550px); y: 48px; width: min(520px, parent.width - 260px); height: 90px;
+        background: Theme.raised; border-width: 1px; border-color: Theme.accent; border-radius: 10px;
+        HorizontalBox { padding: 16px; spacing: 12px;
+            Text { text: root.notification; color: Theme.foreground; wrap: word-wrap; horizontal-stretch: 1; }
+            ActionButton { min-width: 40px; text: "×"; activated => { root.dismiss-notification(); } }
+        }
+    }
+    if ConfigEditor.confirming: Rectangle {
+        background: #060b12bb; TouchArea {}
+        Rectangle { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+            width: 620px; height: 440px; background: Theme.surface; border-width: 1px; border-color: Theme.border; border-radius: 12px;
+            VerticalBox { padding: 24px; spacing: 16px;
+                Text { text: T.tr("変更内容の確認", "Review changes"); color: Theme.foreground; font-size: 26px; }
+                TextEdit { text: ConfigEditor.summary; read-only: true; }
+                Text { text: ConfigEditor.creating ? T.tr("指定先に新しい設定を作成して登録します。ゲームのダウンロードや起動は、この後にサーバー操作から実行します。", "Create and register the new files. Downloading and starting the server are separate actions in Controls.") : root.local-mode ? T.tr("元の設定をバックアップして保存し、管理画面を開き直します。他の未保存の下書きは破棄されます。ゲームには次回起動時に適用します。", "Back up and save, then reopen the manager. Other unsaved drafts will be discarded. Changes apply on the next server start.") : T.tr("模擬設定をこの起動中だけ保存します。実ファイルは変更しません。", "Save mock settings for this session. Real files are unchanged."); color: Theme.muted; wrap: word-wrap; }
+                HorizontalBox { padding: 0px;
+                    ActionButton { text: T.tr("戻る", "Back"); activated => { ConfigEditor.confirming = false; } }
+                    ActionButton { text: ConfigEditor.creating ? T.tr("作成して登録", "Create and register") : T.tr("バックアップして保存", "Back up and save"); primary: true; activated => { ConfigEditor.confirm(); } }
+                }
+            }
+        }
+    }
+    if root.restore-visible: Rectangle {
+        background: #060b12bb;
+        TouchArea {}
+        Rectangle {
+            width: 560px; height: 300px;
+            x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+            background: Theme.surface; border-color: Theme.border; border-width: 1px; border-radius: 12px;
+            VerticalBox {
+                padding: 24px; spacing: 14px;
+                Text { text: T.tr("復元内容の確認", "Review restore"); color: Theme.foreground; font-size: 22px; }
+                Text { text: root.restore-description; color: Theme.foreground; wrap: word-wrap; min-width: 0px; }
+                Text { text: root.local-mode ? T.tr("現在のデータを退避してから実ファイルを置き換えます。復元後は停止状態を維持します。", "Back up current data, then replace files. The server remains stopped.") : T.tr("模擬復元後は停止状態を維持します。実ファイルは変更しません。", "The mock server remains stopped. Real files are unchanged."); color: Theme.muted; wrap: word-wrap; min-width: 0px; }
+                HorizontalBox {
+                    padding: 0px;
+                    ActionButton { text: T.tr("キャンセル", "Cancel"); activated => { root.cancel-restore(); } }
+                    ActionButton { text: root.local-mode ? T.tr("この対象へ復元", "Restore to this server") : T.tr("この対象へ模擬復元", "Simulate restore"); primary: true; activated => { root.confirm-restore(); } }
+                }
+            }
+        }
+    }
+    Rectangle {
+        visible: root.leave-visible;
+        background: #060b12cc; TouchArea {}
+        leave-focus := FocusScope {
+            enabled: root.leave-visible; width: parent.width; height: parent.height;
+            key-pressed(event) => { if event.text == Key.Escape { root.cancel-leave(); return accept; } return reject; }
+        Rectangle { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; width: 600px; height: 270px;
+            background: Theme.surface; border-width: 1px; border-color: Theme.border; border-radius: 12px;
+            VerticalBox { padding: 24px; spacing: 18px;
+                Text { text: T.tr("設定を編集中です", "Settings editor is still open"); color: Theme.foreground; font-size: 22px; font-weight: 600; }
+                Text { text: T.tr("編集内容はまだ保存されていません。変更を破棄して、この画面を離れますか？", "Your edits have not been saved. Discard them and leave this screen?"); color: Theme.foreground; wrap: word-wrap; }
+                if root.leave-busy: Text { text: T.tr("処理の完了後に画面を離れられます。", "You can leave when the current task finishes."); color: Theme.muted; wrap: word-wrap; }
+                HorizontalBox { padding: 0px; spacing: 12px;
+                    keep-editing := ActionButton { text: T.tr("編集を続ける", "Keep editing"); primary: true; activated => { root.cancel-leave(); } }
+                    ActionButton { text: T.tr("変更を破棄して離れる", "Discard and leave"); enabled: !root.leave-busy; activated => { root.confirm-leave(); } }
+                }
+            }
+        }
+        }
+    }
+
+}

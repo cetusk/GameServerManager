@@ -1,0 +1,63 @@
+name: Workspace checks
+on: [push, pull_request]
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Windows PowerShell 5.1 script compatibility
+        shell: powershell
+        run: |
+          $gameManagerScripts = @(git ls-files -- '*.ps1')
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to list PowerShell scripts.' }
+          foreach ($gameManagerScript in $gameManagerScripts) {
+            $gameManagerPath = Join-Path $PWD $gameManagerScript
+            $gameManagerBytes = [System.IO.File]::ReadAllBytes($gameManagerPath)
+            $gameManagerHasBom = $gameManagerBytes.Length -ge 3 -and $gameManagerBytes[0] -eq 0xEF -and $gameManagerBytes[1] -eq 0xBB -and $gameManagerBytes[2] -eq 0xBF
+            if (!$gameManagerHasBom -and @($gameManagerBytes | Where-Object { $_ -gt 127 }).Count -gt 0) {
+              throw "Use ASCII or UTF-8 with BOM for Windows PowerShell 5.1: $gameManagerScript"
+            }
+            $gameManagerTokens = $null
+            $gameManagerParseErrors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile($gameManagerPath, [ref]$gameManagerTokens, [ref]$gameManagerParseErrors)
+            if ($gameManagerParseErrors.Count -gt 0) {
+              throw ($gameManagerParseErrors | Out-String)
+            }
+          }
+      - name: Install pinned Rust components
+        shell: pwsh
+        run: rustup show
+      - name: Formatting
+        run: cargo fmt --all -- --check
+      - name: Dependency boundaries
+        run: python tools/check-boundaries.py
+      - name: Tests
+        run: cargo test --workspace --all-features --locked
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - name: Isolated game features
+        shell: pwsh
+        run: |
+          foreach ($gameManagerFeature in @('arksa', 'valheim', 'windrose', 'satisfactory', 'conan')) {
+            cargo check -p manager-gui --locked --no-default-features --features $gameManagerFeature
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Build native Windows GUI
+        run: cargo build -p manager-gui -p gsm-ctrlc-helper --all-features --locked
+      - name: Native UI startup
+        shell: pwsh
+        run: |
+          & target/debug/manager-gui.exe --backend mock --data-dir "$env:RUNNER_TEMP\gsm-ui-smoke" --smoke-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Local mode startup without game registrations
+        shell: pwsh
+        run: |
+          & target/debug/manager-gui.exe --backend local --data-dir "$env:RUNNER_TEMP\gsm-local-smoke" --smoke-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build release package
+        shell: pwsh
+        run: ./tools/build-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GameServerManager-windows-x64
+          path: dist/GameServerManager-v*-windows-x64.zip

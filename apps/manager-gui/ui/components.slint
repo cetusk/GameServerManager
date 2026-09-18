@@ -1,0 +1,132 @@
+import { HorizontalBox } from "std-widgets.slint";
+
+export global T {
+    in-out property <bool> english: false;
+    public pure function tr(ja: string, en: string) -> string { return self.english ? en : ja; }
+}
+
+export global Theme {
+    in-out property <int> palette: 0;
+    out property <color> background: #0d151b;
+    out property <color> sidebar: #101a21;
+    out property <color> raised: #192731;
+    out property <color> soft: self.palette == 1 ? #192e48 : self.palette == 2 ? #302640 : #163832;
+    out property <color> ink: self.palette == 1 ? #101f36 : self.palette == 2 ? #211632 : #092922;
+    out property <color> surface: #141f28;
+    out property <color> border: #283944;
+    out property <color> foreground: #e2e9ed;
+    out property <color> muted: #99aab5;
+    out property <color> accent: self.palette == 1 ? #78b4ff : self.palette == 2 ? #bb9af7 : #56d7c3;
+}
+export component ActivityIcon inherits Rectangle {
+    in property <string> phase;
+    width: 26px; height: 26px;
+    border-radius: 13px;
+    background: root.phase == "completed" ? Theme.soft : root.phase == "failed" ? #4b252e : transparent;
+    accessible-role: text;
+    accessible-label: root.phase == "running" ? T.tr("実行中", "Running") : root.phase == "completed" ? T.tr("完了", "Completed") : root.phase == "failed" ? T.tr("失敗", "Failed") : T.tr("処理なし", "Idle");
+    if root.phase == "running": Path {
+        x: 3px; y: 3px; width: 20px; height: 20px;
+        viewbox-width: 24; viewbox-height: 24; stroke: Theme.accent; stroke-width: 2px;
+        private property <angle> angle: mod(animation-tick(), 1s) / 1s * 360deg;
+        MoveTo { x: 12 + 9 * cos(parent.angle); y: 12 + 9 * sin(parent.angle); }
+        ArcTo { x: 12 + 9 * cos(parent.angle + 270deg); y: 12 + 9 * sin(parent.angle + 270deg); radius-x: 9; radius-y: 9; large-arc: true; sweep: true; }
+    }
+    if root.phase != "running": Text {
+        text: root.phase == "completed" ? "✓" : root.phase == "failed" ? "×" : "−";
+        color: root.phase == "completed" ? Theme.accent : root.phase == "failed" ? #ff9daa : Theme.muted;
+        font-size: 19px; font-weight: 700;
+        horizontal-alignment: center; vertical-alignment: center;
+    }
+}
+export component PageTab inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    in property <bool> selected;
+    callback activated();
+    callback navigate(int);
+    height: 44px; min-width: 0px; horizontal-stretch: 1;
+    border-radius: 8px; border-width: 1px;
+    border-color: root.selected ? Theme.border : transparent;
+    background: area.pressed ? Theme.soft : root.selected ? Theme.surface : area.has-hover ? Theme.raised : Theme.background;
+    accessible-role: tab; accessible-label: root.text;
+    accessible-action-default => { if root.enabled { root.activated(); } }
+    Rectangle { y: parent.height - 8px; height: 8px; background: root.selected ? Theme.surface : transparent; }
+    Rectangle { x: 14px; y: 1px; width: parent.width - 28px; height: 3px; background: root.selected ? Theme.accent : transparent; border-radius: 2px; }
+    Text { text: root.text; color: root.selected ? Theme.foreground : Theme.muted; font-size: 14px; font-weight: root.selected ? 600 : 400; horizontal-alignment: center; vertical-alignment: center; }
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if event.text == " " || event.text == "\n" { root.activated(); return accept; }
+            if event.text == Key.LeftArrow { root.navigate(-1); return accept; }
+            if event.text == Key.RightArrow { root.navigate(1); return accept; }
+            return reject;
+        }
+    }
+    area := TouchArea { enabled: root.enabled; clicked => { focus.focus(); root.activated(); } }
+    Rectangle { visible: focus.has-focus; border-width: 2px; border-color: Theme.accent; background: transparent; border-radius: 8px; }
+}
+export component Glyph inherits Path {
+    in property <string> name;
+    in property <color> ink: Theme.foreground;
+    width: 18px; height: 18px; viewbox-width: 24; viewbox-height: 24;
+    stroke: root.ink; stroke-width: 1.7px;
+    commands: root.name == "play" ? "M7 4 L20 12 L7 20 Z"
+        : root.name == "stop" ? "M5 5 H19 V19 H5 Z"
+        : root.name == "copy" ? "M9 8 H20 V21 H9 Z M15 8 V3 H4 V16 H9"
+        : root.name == "download" ? "M12 3 V15 M7 10 L12 15 L17 10 M4 17 V21 H20 V17"
+        : root.name == "refresh" ? "M20 9 A8 8 0 1 0 20 16 M20 3 V9 H14"
+        : root.name == "gear" ? "M9 3 H15 L16 6 L19 7 L22 10 L20 13 L20 16 L17 19 L14 19 L12 22 L9 20 L6 20 L3 17 L4 14 L2 11 L4 8 L7 7 Z M16 12 A4 4 0 1 0 8 12 A4 4 0 1 0 16 12"
+        : root.name == "folder" ? "M3 6 H10 L12 8 H21 V20 H3 Z"
+        : root.name == "check" ? "M4 12 L9 17 L20 6"
+        : "M12 4 V20 M4 12 H20";
+}
+
+export component ActionButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    in property <bool> primary: false;
+    in property <string> icon;
+    callback activated();
+    callback focus-control();
+    focus-control => { focus.focus(); }
+    min-width: max(110px, label.preferred-width + (root.icon == "" ? 32px : 58px));
+    height: 40px;
+    border-radius: 7px;
+    border-width: 1px;
+    border-color: root.primary ? Theme.accent : Theme.border;
+    background: area.pressed ? (root.primary ? Theme.accent.darker(15%) : Theme.soft) : root.primary ? Theme.accent : area.has-hover ? Theme.raised : Theme.surface;
+    opacity: root.enabled ? 1 : 0.45;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { if root.enabled { root.activated(); } }
+    HorizontalBox {
+        padding: 12px; spacing: 8px; alignment: center;
+        if root.icon != "": Glyph { name: root.icon; ink: root.primary ? Theme.ink : Theme.foreground; }
+        label := Text { text: root.text; color: root.primary ? Theme.ink : Theme.foreground; font-size: 14px; horizontal-alignment: center; vertical-alignment: center; }
+    }
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if event.text == " " || event.text == "\n" { root.activated(); return accept; }
+            return reject;
+        }
+    }
+    area := TouchArea { width: root.width; height: root.height; enabled: root.enabled; clicked => { focus.focus(); root.activated(); } }
+    Rectangle { visible: focus.has-focus; border-width: 2px; border-color: Theme.accent; background: transparent; border-radius: 7px; }
+}
+export component GameIcon inherits Rectangle {
+    in property <string> game-id;
+    width: 56px; height: 56px;
+    background: #101b24; border-color: Theme.border; border-width: 1px; border-radius: 12px;
+    Image {
+        x: 8px; y: 8px; width: 40px; height: 40px;
+        image-fit: contain;
+        source: root.game-id == "arksa" ? @image-url("../assets/game-icons/arksa.jpg")
+            : root.game-id == "valheim" ? @image-url("../assets/game-icons/valheim.jpg")
+            : root.game-id == "windrose" ? @image-url("../assets/game-icons/windrose.jpg")
+            : root.game-id == "satisfactory" ? @image-url("../assets/game-icons/satisfactory.jpg")
+            : root.game-id == "conan" ? @image-url("../assets/game-icons/conan.jpg") : @image-url("");
+    }
+}

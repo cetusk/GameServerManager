@@ -1,0 +1,67 @@
+import { VerticalBox, HorizontalBox, LineEdit, ComboBox } from "std-widgets.slint";
+import { Theme, T, ActionButton, ActivityIcon } from "components.slint";
+export struct EditorField { group: int, key: string, label-ja: string, label-en: string, value: string, secret: bool, path: bool, read-only: bool, options: [string] }
+export global ConfigEditor {
+    in property <[EditorField]> fields;
+    in property <bool> loaded;
+    in property <bool> creating;
+    in property <bool> busy;
+    in-out property <bool> confirming;
+    in property <string> summary;
+    in property <string> message;
+    in property <string> notes;
+    callback browse(string);
+    callback load(bool);
+    callback changed(string, string);
+    callback review();
+    callback cancel();
+    callback confirm();
+}
+export component EditorPanel inherits VerticalBox {
+    in property <bool> world;
+    in property <string> game;
+    in property <bool> enabled;
+    padding: 0px; spacing: 14px;
+    Text { text: ConfigEditor.creating ? T.tr("新しいサーバーの設定", "New server configuration") : root.world ? T.tr("ワールドのパラメーター", "World parameters") : T.tr("サーバーの基本設定", "Server settings"); color: Theme.foreground; font-size: 16px; font-weight: 600; }
+    if !ConfigEditor.creating: Text { text: T.tr("保存前に変更内容を確認し、元の設定をバックアップします。ゲームへの適用は次回起動時です。", "Review changes and back up the original before saving. Changes take effect the next time the server starts."); color: Theme.muted; wrap: word-wrap; }
+    if !root.world && !ConfigEditor.creating: Text { text: T.tr("パスの変更は参照先の変更です。既存データは移動しません。変更前のバックアップ先に退避して保存します。", "Changing a path changes its reference; existing data is not moved. The pre-change backup folder is used for this save."); color: Theme.muted; wrap: word-wrap; }
+    if ConfigEditor.creating: Text { text: T.tr("設定ファイルの保存先と空のサーバー設置先を指定してください。SteamCMD は用意済みの実行ファイルを指定します。作成・登録後、「サーバー操作」からインストールできます。既存ファイルは上書きしません。", "Choose a new configuration file and an empty installation folder. Select an existing SteamCMD executable. After creating and registering, install from Controls. Existing files are never overwritten."); color: Theme.muted; wrap: word-wrap; }
+    if ConfigEditor.creating && root.game == "valheim": Text { text: T.tr("新しいワールドの名前と空のワールド保存先を指定します。参加パスワードは5文字以上必要です。", "Choose a new world name and an empty save folder. The join password must contain at least 5 characters."); color: Theme.muted; wrap: word-wrap; }
+    if ConfigEditor.creating && root.game == "arksa": Text { text: T.tr("正常停止用の管理者パスワードを入力してください。マップ名は例: TheIsland_WP。", "Enter an administrator password for graceful shutdown. Example map: TheIsland_WP."); color: Theme.muted; wrap: word-wrap; }
+    if ConfigEditor.creating && (root.game == "windrose" || root.game == "satisfactory"): Text { text: T.tr("初回起動でゲーム自身が設定・ワールドを作成します。起動後は必要な初期設定をゲーム内で行い、このツールで停止して管理画面を再読み込みしてください。", "The game generates settings and world data on first start. Complete any in-game setup, stop from this tool, then reload the manager."); color: Theme.muted; wrap: word-wrap; }
+    if !root.world && root.game == "satisfactory": Text { text: T.tr("名前はこの管理画面の表示名です。API認証欄にはゲーム側で設定済みの資格情報を入力してください。参加・管理者パスワード自体の変更はゲーム内のサーバーマネージャーで行います。保存先は実際の SaveGames と一致する必要があります。ログ欄は読み取り対象の指定で、ゲーム側の出力先は変更しません。", "The name is a label in this manager. Enter existing server credentials for API login. Change actual join/admin passwords in the game's Server Manager. The save folder must match the actual SaveGames location. The log field selects the file to read; it does not change the game’s log output."); color: Theme.muted; wrap: word-wrap; }
+    if !root.world && (root.game == "arksa" || root.game == "conan" || root.game == "windrose"): Text { text: T.tr("ワールド保存先はサーバー設置先とゲーム設定から決まります。下記の保存範囲を確認してください。", "World save paths are determined by the installation and game settings. See the save locations below."); color: Theme.muted; wrap: word-wrap; }
+    if !root.world && root.game == "windrose": Text { text: T.tr("接続ポートは旧ツールでも指定していません。未確認のポート設定は追加せず、実ファイルに存在する設定項目を編集します。", "The legacy tool does not set a connection port. Only fields present in the generated configuration are editable."); color: Theme.muted; wrap: word-wrap; }
+    if ConfigEditor.busy: HorizontalBox { padding: 0px; ActivityIcon { phase: "running"; } Text { text: T.tr("設定を処理中…", "Processing settings…"); color: Theme.muted; } }
+    if !ConfigEditor.loaded: ActionButton { text: T.tr("設定を編集", "Edit settings"); enabled: root.enabled && !ConfigEditor.busy; activated => { ConfigEditor.load(root.world); } }
+    if ConfigEditor.loaded: VerticalBox {
+        padding: 0px; spacing: 12px;
+        for field in ConfigEditor.fields: VerticalBox {
+            padding: 0px; spacing: 5px;
+            if field.group > 0: Text { text: field.group == 2 ? T.tr("保存場所・ツール", "Folders and tools") : T.tr("接続・動作設定", "Connection and behavior"); color: Theme.accent; font-size: 14px; font-weight: 600; }
+            HorizontalBox {
+                padding: 0px; spacing: 16px;
+                Text { text: T.english ? field.label-en : field.label-ja; color: Theme.foreground; min-width: 250px; max-width: 250px; wrap: word-wrap; vertical-alignment: center; }
+                if field.options.length == 0: LineEdit {
+                    horizontal-stretch: 1;
+                    text: field.value;
+                    input-type: field.secret ? InputType.password : InputType.text;
+                    placeholder-text: field.secret && !ConfigEditor.creating ? T.tr("空欄なら現在のパスワードを維持", "Leave blank to keep the current password") : "";
+                    enabled: root.enabled && !ConfigEditor.busy && !field.read-only;
+                    edited(value) => { ConfigEditor.changed(field.key, value); }
+                }
+                if field.path && !field.read-only: ActionButton { max-width: 110px; text: T.tr("参照…", "Browse…"); icon: "folder"; enabled: root.enabled && !ConfigEditor.busy; activated => { ConfigEditor.browse(field.key); } }
+                if field.options.length > 0: ComboBox { model: field.options; current-value: field.value; enabled: root.enabled && !ConfigEditor.busy; selected(value) => { ConfigEditor.changed(field.key, value); } }
+            }
+            if field.secret && !ConfigEditor.creating: Text { text: T.tr("変更する場合のみ入力。空欄なら現在の値を維持します。", "Enter a value only to change it. Blank keeps the current value."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+            if field.key == "port" && root.game == "valheim": Text { text: T.tr("1024〜65534。変更後は接続先と、必要に応じてルーター・ファイアウォールの設定も合わせてください。", "1024–65534. Update the connection port and any router / firewall rules when changing this."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+        }
+        HorizontalBox {
+            padding: 0px; spacing: 12px;
+            ActionButton { text: T.tr("変更を破棄", "Discard changes"); enabled: !ConfigEditor.busy; activated => { ConfigEditor.cancel(); } }
+            ActionButton { text: T.tr("変更内容を確認", "Review changes"); enabled: root.enabled && !ConfigEditor.busy; primary: true; activated => { ConfigEditor.review(); } }
+        }
+    }
+    if ConfigEditor.notes != "": Text { text: ConfigEditor.notes; color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+    if ConfigEditor.message != "": Text { text: ConfigEditor.message; color: Theme.muted; wrap: word-wrap; }
+}

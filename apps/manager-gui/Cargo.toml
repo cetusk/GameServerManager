@@ -1,0 +1,39 @@
+[package]
+name = "manager-gui"
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+default = ["arksa", "valheim", "windrose", "satisfactory", "conan"]
+arksa = ["dep:game-arksa"]
+valheim = ["dep:game-valheim"]
+windrose = ["dep:game-windrose"]
+satisfactory = ["dep:game-satisfactory"]
+conan = ["dep:game-conan"]
+
+[dependencies]
+gsm-domain.workspace = true
+gsm-application.workspace = true
+gsm-infra.workspace = true
+gsm-mock.workspace = true
+anyhow.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+slint = { workspace = true, features = ["raw-window-handle-06"] }
+game-arksa = { path = "../../crates/games/arksa", optional = true }
+game-valheim = { path = "../../crates/games/valheim", optional = true }
+game-windrose = { path = "../../crates/games/windrose", optional = true }
+game-satisfactory = { path = "../../crates/games/satisfactory", optional = true }
+game-conan = { path = "../../crates/games/conan", optional = true }
+rfd = "0.17.2"
+arboard = { version = "3.6.1", default-features = false }
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+
+[build-dependencies]
+slint-build.workspace = true
+winresource = "0.1.31"
