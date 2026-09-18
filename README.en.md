@@ -10,6 +10,8 @@ Manage game servers on Windows from a single desktop application. Select the gam
 
 We plan to continue adding server management support for more games.
 
+**Currently, each game supports one registered server and one managed world.** Registering and switching between multiple servers or worlds for the same game is not supported. Servers for different games can each be registered.
+
 ## Features
 
 - Supports ARK: Survival Ascended, Valheim, Windrose, Satisfactory and Conan Exiles
@@ -19,7 +21,7 @@ We plan to continue adding server management support for more games.
 - Server logs with full-log copying, operation status and task history
 - Three dark themes and Japanese / English interface languages
 
-Currently, Valheim startup, joining, graceful shutdown and backup creation have been verified on a real server. Other games, restoration and the full new-server setup flow have not yet been verified on real Windows servers. See [support status and limitations](docs/compatibility.md).
+Currently, Valheim startup, joining, graceful shutdown, backup creation and SteamCMD update completion have been verified on a real server. Other games, restoration and the full new-server setup flow have not yet been verified on real Windows servers. See [support status and limitations](docs/compatibility.md).
 
 ## Requirements
 
@@ -80,11 +82,11 @@ This builds and launches the GUI and graceful-shutdown helper in the development
 1. Choose a management data folder on first launch, then select a game and open **Server settings**.
 2. For a new installation, select **Create new configuration** and enter a new configuration file path, an empty installation folder, the SteamCMD path and other required fields. For an existing server, register a supported ServerMaintainer configuration (`Profile/*.ini` for ARK; `config.toml` for other games).
 3. Review and create/register the configuration. Registration takes effect automatically.
-4. For a new installation, use **Controls → Update / install**, then reload the manager and start the server.
+4. For a new installation, use **Controls → Update / install**, wait for the automatic reload after a successful update, then start the server.
 
 Creation does not overwrite existing files. Some initial setup must be performed in the game, such as claiming a Satisfactory server and creating its first session. See the [server settings guide](docs/server-settings.md).
 
-Change the interface language using **Language → 日本語 / English** in the bottom-left corner. Remembering the previous game and tab is disabled by default.
+Change the interface language using **Language → 日本語 / English** in the bottom-left corner. Remembering the previous game and tab is enabled by default. Existing saved preferences are preserved.
 
 ### Set up SteamCMD
 
@@ -99,7 +101,7 @@ New server configurations start with the saved shared path, or the suggested pat
 
 This downloads the SteamCMD bootstrap executable. SteamCMD initializes and updates itself when you first use **Update / install** for a game server. Use of the same SteamCMD installation is serialized. See the [SteamCMD guide](docs/steamcmd.md) for details and path references.
 
-The manager verifies SteamCMD initialization and self-update before updating the game server. If an update fails, check the operation history and the SteamCMD update log in **Logs**. **Copy full log** includes the update log as well.
+The manager verifies SteamCMD initialization and self-update before updating the game server. After a successful update, it displays a notice and reloads automatically, waiting for other operations and editing to finish. If an update fails, check the operation history and the SteamCMD update log in **Logs**. **Copy full log** includes the update log as well.
 
 ## Data handling
 

@@ -15,6 +15,35 @@ fn completed<T>(
     Some(result)
 }
 impl Session {
+    pub(super) fn poll_update_reload(&mut self, ui: &MainWindow) {
+        let snapshot = self.app.snapshot();
+        let safe = !self.steamcmd.busy()
+            && !self.registration.busy()
+            && !self.file_picker_open
+            && self.selection_receiver.is_none()
+            && self.transfer_receiver.is_none()
+            && self.import_receiver.is_none()
+            && self.copy_receiver.is_none()
+            && self.save_job.is_none()
+            && !self.creation_busy()
+            && self.drafts.is_empty()
+            && !self.editing()
+            && !self.choosing
+            && !self.preferences_open
+            && self.pending_restore.is_none()
+            && self.pending_navigation.is_none()
+            && !ui.global::<ConfigEditor>().get_confirming()
+            && snapshot.instances.iter().all(|view| view.active.is_none());
+        match self.update_reload.poll(&snapshot.jobs, Instant::now(), safe) {
+            update_reload::Action::Announce => self.toast(ui, if self.english() {
+                "Update / install completed. The manager will reload automatically when other operations and editing are finished."
+            } else {
+                "更新・インストールが完了しました。他の操作・編集中の設定がなければ、管理画面を自動で再読み込みします。"
+            }.into()),
+            update_reload::Action::Reload => self.navigate(Destination::Reload, ui),
+            update_reload::Action::Wait => (),
+        }
+    }
     pub(super) fn apply_selection(&mut self) {
         if self.selection_receiver.is_some() {
             return;

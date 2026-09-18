@@ -3,6 +3,7 @@ mod features;
 mod feedback;
 mod navigation;
 mod steamcmd;
+mod update_reload;
 use navigation::Destination;
 
 use crate::{
@@ -42,6 +43,7 @@ struct Session {
     pending_navigation: Option<Destination>,
     pending_restore: Option<(InstanceId, BackupId, String)>,
     reload: bool,
+    update_reload: update_reload::Pending,
     change_directory: bool,
     prefs: Preferences,
     prefs_writer: PreferenceWriter,
@@ -632,12 +634,16 @@ impl Session {
         }
         if let Some(id) = self.active {
             self.registration.activity = None;
-            self.error = self
-                .app
-                .submit(id, command)
-                .err()
-                .map(|e| e.to_string())
-                .unwrap_or_default();
+            let updating = command == Command::Update;
+            match self.app.submit(id, command) {
+                Ok(job) => {
+                    self.error.clear();
+                    if updating {
+                        self.update_reload.submitted(job);
+                    }
+                }
+                Err(e) => self.error = e.to_string(),
+            }
         }
     }
     fn cancel_selection(&mut self) {
@@ -740,6 +746,7 @@ pub fn run(
         pending_restore: None,
         pending_navigation: None,
         reload: false,
+        update_reload: update_reload::Pending::default(),
         change_directory: false,
         prefs,
         prefs_writer: PreferenceWriter::new(prefs_path.clone())?,
@@ -1100,6 +1107,7 @@ pub fn run(
                 state.registration.poll();
                 state.steamcmd.poll();
                 state.poll_features(&ui);
+                state.poll_update_reload(&ui);
                 if state.registration.reload_ready
                     && !state.steamcmd.busy()
                     && state.selection_receiver.is_none()

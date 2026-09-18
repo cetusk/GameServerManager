@@ -34,8 +34,8 @@ impl Default for Preferences {
             notify_completed: true,
             notify_failed: true,
             sound: false,
-            remember_game: false,
-            remember_tab: false,
+            remember_game: true,
+            remember_tab: true,
             last_game: None,
             last_tab: 0,
         }
@@ -142,21 +142,18 @@ mod tests {
         assert_eq!(Preferences::read(&path).unwrap(), prefs);
     }
     #[test]
-    fn navigation_memory_is_opt_in_by_default() {
+    fn navigation_memory_defaults_on_and_preserves_saved_opt_out() {
         let p = Preferences::default();
-        assert!(!p.remember_game && !p.remember_tab);
+        assert!(p.remember_game && p.remember_tab);
         assert_eq!(p.last_game, None);
         assert_eq!(p.last_tab, 0);
-        let enabled = Preferences {
-            remember_game: true,
-            remember_tab: true,
+        let disabled = Preferences {
+            remember_game: false,
+            remember_tab: false,
             ..p
         };
-        assert!(
-            Preferences::parse(&serde_json::to_vec(&enabled).unwrap())
-                .unwrap()
-                .remember_tab
-        );
+        let restored = Preferences::parse(&serde_json::to_vec(&disabled).unwrap()).unwrap();
+        assert!(!restored.remember_game && !restored.remember_tab);
     }
     #[test]
     fn disabled_memory_does_not_export_navigation() {

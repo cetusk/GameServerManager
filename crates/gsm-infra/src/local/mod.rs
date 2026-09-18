@@ -598,7 +598,7 @@ impl GameBackend for LocalBackend {
             .load(std::sync::atomic::Ordering::SeqCst)
         {
             logs.push(
-                "設定・復元・更新後は設定を確認し「管理画面を再読み込み」で再起動してください"
+                "変更の反映には管理画面の再読み込みが必要です。GUIからの更新成功時は自動で再読み込みします。"
                     .into(),
             );
         }

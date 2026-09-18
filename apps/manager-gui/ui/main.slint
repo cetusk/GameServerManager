@@ -316,12 +316,12 @@ export component MainWindow inherits Window {
                                         padding: 0px; spacing: 14px;
                                         Rectangle { height: 1px; background: Theme.border; }
                                         Text { text: T.tr("サーバーファイルの更新", "Server file updates"); color: Theme.foreground; font-size: 16px; font-weight: 600; }
-                                        Text { text: T.tr("停止中に SteamCMD で更新・インストールします。", "Update or install via SteamCMD while stopped."); color: Theme.muted; wrap: word-wrap; }
+                                        Text { text: T.tr("停止中に SteamCMD で更新・インストールします。完了後は管理画面を自動で再読み込みします。", "Update or install via SteamCMD while stopped. The manager reloads automatically after completion."); color: Theme.muted; wrap: word-wrap; }
                                         HorizontalBox { padding: 0px; spacing: 12px; alignment: start;
                                             ActionButton { text: T.tr("更新・インストール", "Update / install"); icon: "download"; enabled: root.controls-enabled && (root.can-backup); activated => { root.update-server(); } }
                                             ActionButton { text: T.tr("管理画面を再読み込み", "Reload manager"); icon: "refresh"; enabled: root.controls-enabled && (root.can-reload); activated => { root.reload-registrations(); } }
                                         }
-                                        Text { text: T.tr("更新・復元後は管理画面を再読み込みします。稼働中はプロセスの存在を示します。接続可否はゲーム内で確認してください。", "Reload the manager after updating or restoring. Running indicates the process exists; check connectivity in the game."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+                                        Text { text: T.tr("更新成功時は通知後に自動で再読み込みします。ほかの操作・設定編集中は終了するまで待機します。復元後は「管理画面を再読み込み」を押してください。", "After a successful update, a notice appears before automatic reload. Reload waits for other operations and editing to finish. After restoring, select Reload manager."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
                                     }
                                 } }
                                 if root.page-index == 1 && root.registration-supported: ScrollView { VerticalBox {
