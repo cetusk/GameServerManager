@@ -51,17 +51,19 @@ The script builds both the GUI and graceful-shutdown helper in release mode and 
 
 Copy **both executables into the same folder**, for example `D:\Apps\GameServerManager`. Keep the graceful-shutdown helper alongside the application. Images are embedded in the executable, so the `assets` folder is not required at runtime. Rust is not required to run the built application.
 
-Open PowerShell in that folder and specify an **absolute path** for management data:
+Double-click `manager-gui.exe`. On first launch, use **Browse…** or enter an absolute folder path, then select **Open this directory**. Subsequent direct launches automatically use that location.
+
+View or change it under **App settings → Data location**. This directory stores registrations, app preferences and operation records; game installations, worlds and backups have separate paths. Changing the directory reopens the manager with the selected folder's data. Original data is never moved or deleted. Stop all servers and finish or recover outstanding operations before switching.
+
+The selected location is remembered in `%LOCALAPPDATA%\GameServerManager\data-location.json`. If the directory is unavailable, for example because a drive is disconnected, the app displays the directory chooser with an explanation.
+
+An explicit command-line path is still supported. It overrides the remembered location without replacing that preference:
 
 ```powershell
 .\manager-gui.exe --backend local --data-dir 'D:\GameServerManagerData'
 ```
 
-`--data-dir` stores registrations, app preferences and operation records. Game installation and world save paths are configured separately in the GUI. Use the same management data path on subsequent launches to retain your setup.
-
-The management data location currently cannot be changed inside the app. You can view the current path under **App settings → About**.
-
-For a launch script, copy `tools\start-packaged.ps1` from the source repository into the executable folder as `start-manager.ps1`, then run `.\start-manager.ps1`. Its default management data location is the `data` subfolder beside the executables.
+Development launch scripts and `tools\start-packaged.ps1` specify their own directories, which take precedence over the saved GUI selection. For normal use, open the EXE directly.
 
 ### Development build from source
 
@@ -75,7 +77,7 @@ This builds and launches the GUI and graceful-shutdown helper in the development
 
 ## First-time setup
 
-1. Select a game and open **Server settings**.
+1. Choose a management data folder on first launch, then select a game and open **Server settings**.
 2. For a new installation, select **Create new configuration** and enter a new configuration file path, an empty installation folder, the SteamCMD path and other required fields. For an existing server, register a supported ServerMaintainer configuration (`Profile/*.ini` for ARK; `config.toml` for other games).
 3. Review and create/register the configuration. Registration takes effect automatically.
 4. For a new installation, use **Controls → Update / install**, then reload the manager and start the server.

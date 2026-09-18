@@ -6,6 +6,10 @@
 # Local runtime data (may contain credentials, logs and world backups)
 /.manager-data/
 /.dev-data/
+data-location.json
+local-manager.lock
+mock-manager.lock
+local-registrations.lock
 local-app.json
 mock-app.json
 local-registrations.json

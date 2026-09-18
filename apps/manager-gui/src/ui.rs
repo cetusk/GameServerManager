@@ -20,6 +20,12 @@ use std::{collections::BTreeMap, path::PathBuf, sync::mpsc, time::Instant};
 
 type EditorReply = ((String, bool), Result<Draft, String>);
 
+pub enum SessionExit {
+    Close,
+    Reload,
+    ChangeDirectory(bool),
+}
+
 struct Session {
     app: Arc<Application>,
     registration: crate::registration::RegistrationPanel,
@@ -34,6 +40,7 @@ struct Session {
     pending_navigation: Option<Destination>,
     pending_restore: Option<(InstanceId, BackupId, String)>,
     reload: bool,
+    change_directory: bool,
     prefs: Preferences,
     prefs_writer: PreferenceWriter,
     prefs_path: PathBuf,
@@ -156,6 +163,8 @@ impl Session {
                 || self.creation_busy(),
         );
         ui.set_preferences_open(self.preferences_open);
+        ui.global::<AppPreferences>()
+            .set_data_can_change(self.can_change_directory());
         ui.set_copy_busy(self.copy_receiver.is_some());
         ui.set_selection_busy(self.selection_receiver.is_some());
         ui.global::<AppPreferences>()
@@ -659,7 +668,8 @@ pub fn run(
     data_root: &str,
     smoke_test: bool,
     startup_error: String,
-) -> anyhow::Result<bool> {
+    setup_language: Option<bool>,
+) -> anyhow::Result<SessionExit> {
     let ui = MainWindow::new()?;
     ui.set_data_root(data_root.into());
     ui.set_local_mode(app.is_local());
@@ -669,13 +679,18 @@ pub fn run(
     } else {
         "mock-preferences.json"
     });
-    let (prefs, prefs_valid, prefs_error) = if prefs_path.exists() {
+    let new_preferences = !prefs_path.exists();
+    let (prefs, prefs_valid, prefs_error) = if !new_preferences {
         match Preferences::read(&prefs_path) {
             Ok(p) => (p, true, String::new()),
             Err(e) => (Preferences::default(), false, e),
         }
     } else {
-        (Preferences::default(), true, String::new())
+        let mut prefs = Preferences::default();
+        if let Some(english) = setup_language {
+            prefs.language = if english { "en" } else { "ja" }.into();
+        }
+        (prefs, true, String::new())
     };
     let initial_game = if prefs.remember_game {
         prefs.last_game.clone()
@@ -710,6 +725,7 @@ pub fn run(
         pending_restore: None,
         pending_navigation: None,
         reload: false,
+        change_directory: false,
         prefs,
         prefs_writer: PreferenceWriter::new(prefs_path.clone())?,
         prefs_path,
@@ -739,6 +755,9 @@ pub fn run(
             state.select_game(&game);
         }
         state.apply_preferences(&ui);
+        if new_preferences && setup_language.is_some() {
+            state.save_preferences();
+        }
     }
     features::bind_features(&ui, &session);
     macro_rules! handler {
@@ -1142,8 +1161,14 @@ pub fn run(
     let saved = session.borrow().prefs_writer.flush();
     result?;
     saved.map_err(anyhow::Error::msg)?;
-    let reload = session.borrow().reload;
-    Ok(reload)
+    let state = session.borrow();
+    Ok(if state.change_directory {
+        SessionExit::ChangeDirectory(state.english())
+    } else if state.reload {
+        SessionExit::Reload
+    } else {
+        SessionExit::Close
+    })
 }
 
 #[cfg(test)]

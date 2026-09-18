@@ -10,7 +10,7 @@ Rust 1.98.1 と Slint 1.18.0 を固定し、Cargo.lock を管理します。主�
 .\run-manager.ps1 -DataDir 'D:\GSM\data'
 ```
 
-`run-manager.ps1` は GUI と `gsm-ctrlc-helper.exe` を同時にビルドします。直接起動は `manager-gui.exe --data-dir <絶対パス> --backend local`。`--data-dir` を省略・相対指定するとエラーです。backend 省略時は従来互換の mock とし、実管理は明示的に選びます。
+`run-manager.ps1` は GUI と `gsm-ctrlc-helper.exe` を同時にビルドします。直接起動は `manager-gui.exe --data-dir <絶対パス> --backend local`。引数なしのexe起動はlocalモードで、保存先を記憶していなければ初回設定画面を開きます。`--backend mock` と `--smoke-test` は明示的な絶対パスの `--data-dir` が必須です。`--data-dir` 指定時のbackend省略は従来互換のmockです。明示パスは記憶済みの保存先より優先され、記憶自体は変更しません。
 
 mock と local の選択保存は `mock-app.json` / `local-app.json` に分離します。`local-registrations.json` は設定の参照先・ハッシュ・ID の登録です。実管理ではインストール先のファイルロックと Windows ユーザー単位のロックも取ります。実ファイルは [実管理ガイド](local-manager.md) に記載した範囲でのみ操作します。
 
@@ -80,3 +80,9 @@ GUIと正常停止用ヘルパーを `target\x86_64-pc-windows-msvc\release\` �
 `.git/` はGit自身が使う履歴・設定の保存先で、通常の `git add` やpushのファイル対象には入りません。`.gitignore` への追加は不要です。`.github/` はGitHub Actionsのテスト・ビルド設定であり、ソースと一緒に追跡します。
 
 `.gitignore` は未追跡ファイルを対象から外す設定です。既にコミットしたファイルや過去の履歴から情報を削除する機能ではありません。
+
+### 管理データ保存先の起動経路
+
+引数なし/local起動の保存先記録はWindowsで`%LOCALAPPDATA%/GameServerManager/data-location.json`、LinuxのUI確認では`$XDG_CONFIG_HOME/GameServerManager/data-location.json`（未指定時は`$HOME/.config/`以下）です。mockはこの記録を読み書きしません。初回画面の確認は、テスト専用ユーザー設定ディレクトリを使用してください。
+
+保存先の選択・書き込み確認・既存設定の検証・記憶の保存はワーカーで行います。切り替え時はサーバー停止・ジョブ完了をGUIで確認し、元のセッションを終了・flushしてロックを解放した後に選択画面を開きます。選択の適用時に元の保存先ロックを取得し直し、未登録分を含む`instances`内のプロセス／操作／回復記録も確認します。新しい保存先はロック・管理設定・登録・アプリ設定・書き込み可能性を検証してから記憶します。キャンセルは元の保存先を再表示します。データのコピー・移動は行いません。

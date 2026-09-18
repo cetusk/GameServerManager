@@ -9,6 +9,7 @@ pub(super) enum Destination {
     Preferences,
     Create(String),
     Reload,
+    ChangeDirectory,
     Close,
 }
 fn defer(
@@ -27,6 +28,24 @@ fn defer(
     }
 }
 impl Session {
+    pub(super) fn can_change_directory(&self) -> bool {
+        !self.registration.busy()
+            && !self.file_picker_open
+            && self.selection_receiver.is_none()
+            && self.transfer_receiver.is_none()
+            && self.import_receiver.is_none()
+            && self.copy_receiver.is_none()
+            && self.editor_receiver.is_none()
+            && self.review_receiver.is_none()
+            && self.save_job.is_none()
+            && !self.creation_busy()
+            && self
+                .app
+                .snapshot()
+                .instances
+                .iter()
+                .all(|v| v.active.is_none() && v.observation.process == ProcessState::Absent)
+    }
     pub(super) fn creation_busy(&self) -> bool {
         self.creation_receiver.is_some() || (self.creation.is_some() && self.registration.busy())
     }
@@ -103,6 +122,13 @@ impl Session {
                 self.page = 1;
                 ui.global::<ConfigEditor>().set_message("".into());
             }
+            Destination::ChangeDirectory => {
+                if !self.can_change_directory() {
+                    return;
+                }
+                self.change_directory = true;
+                let _ = slint::quit_event_loop();
+            }
             Destination::Reload => {
                 self.reload = true;
                 let _ = slint::quit_event_loop();
@@ -146,6 +172,7 @@ mod tests {
             Destination::Choose,
             Destination::Preferences,
             Destination::Reload,
+            Destination::ChangeDirectory,
             Destination::Close,
         ] {
             let mut pending = None;

@@ -13,6 +13,14 @@ impl Session {
                 _ => 0,
             });
         let p = ui.global::<AppPreferences>();
+        p.set_data_path(
+            self.prefs_path
+                .parent()
+                .unwrap()
+                .display()
+                .to_string()
+                .into(),
+        );
         p.set_notify_completed(self.prefs.notify_completed);
         p.set_notify_failed(self.prefs.notify_failed);
         p.set_sound(self.prefs.sound);
@@ -267,6 +275,15 @@ pub(super) fn bind_features(ui: &MainWindow, session: &Rc<RefCell<Session>>) {
             $object.$event(move |$($arg),*|{if let Some($u)=weak.upgrade(){let mut $s=state.borrow_mut();$body;$s.refresh(&$u);}});
         }};
     }
+    bind!(
+        ui.global::<AppPreferences>(),
+        on_change_data_directory,
+        |s, u| {
+            if s.can_change_directory() {
+                s.navigate(Destination::ChangeDirectory, &u);
+            }
+        }
+    );
     bind!(ui, on_toggle_preferences, |s, u| {
         s.navigate(Destination::Preferences, &u);
         let _ = &u;

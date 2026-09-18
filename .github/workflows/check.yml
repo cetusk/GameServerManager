@@ -57,6 +57,40 @@ jobs:
       - name: Build release package
         shell: pwsh
         run: ./tools/build-windows.ps1
+      - name: Release GUI startup and first-run window
+        shell: pwsh
+        run: |
+          $gameManagerExe = Join-Path $PWD 'target/x86_64-pc-windows-msvc/release/manager-gui.exe'
+          foreach ($gameManagerMode in @('mock', 'local')) {
+            $gameManagerData = Join-Path $env:RUNNER_TEMP "gsm-release-$gameManagerMode"
+            $gameManagerProcess = Start-Process $gameManagerExe -ArgumentList @('--backend', $gameManagerMode, '--data-dir', ('"' + $gameManagerData + '"'), '--smoke-test') -PassThru
+            if (!$gameManagerProcess.WaitForExit(60000)) {
+              $gameManagerProcess.Kill()
+              throw 'Release smoke test timed out.'
+            }
+            if ($gameManagerProcess.ExitCode -ne 0) { throw 'Release smoke test failed.' }
+          }
+          $gameManagerOriginalLocalAppData = $env:LOCALAPPDATA
+          $gameManagerProcess = $null
+          try {
+            $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'gsm-release-first-run-user'
+            $gameManagerProcess = Start-Process $gameManagerExe -PassThru
+            $gameManagerWindowReady = $gameManagerProcess.WaitForInputIdle(30000)
+            Start-Sleep -Seconds 2
+            $gameManagerProcess.Refresh()
+            if (!$gameManagerWindowReady -or $gameManagerProcess.HasExited -or $gameManagerProcess.MainWindowHandle -eq 0 -or $gameManagerProcess.MainWindowTitle -ne 'GameServerManager') {
+              throw 'Direct release launch did not open the first-run window.'
+            }
+            if (Test-Path (Join-Path $env:LOCALAPPDATA 'GameServerManager/data-location.json')) {
+              throw 'First-run launch selected a directory without user confirmation.'
+            }
+            $null = $gameManagerProcess.CloseMainWindow()
+            if (!$gameManagerProcess.WaitForExit(15000)) { throw 'First-run window did not close.' }
+            if ($gameManagerProcess.ExitCode -ne 0) { throw 'First-run window failed.' }
+          } finally {
+            $env:LOCALAPPDATA = $gameManagerOriginalLocalAppData
+            if ($null -ne $gameManagerProcess -and !$gameManagerProcess.HasExited) { $gameManagerProcess.Kill() }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: GameServerManager-windows-x64

@@ -7,6 +7,9 @@ export global AppPreferences {
     in-out property <bool> remember-game: false;
     in-out property <bool> remember-tab: false;
     in property <string> info;
+    in property <string> data-path;
+    in property <bool> data-can-change;
+    callback change-data-directory();
     in property <string> transfer-summary;
     in property <bool> transfer-ready;
     in property <bool> transfer-busy;
@@ -27,8 +30,8 @@ export component PreferencesPage inherits Rectangle {
         Text { text: T.tr("表示と通知を自分に合わせて調整します。", "Customize appearance and notifications."); color: Theme.muted; }
         HorizontalBox {
             padding: 0px; spacing: 0px;
-            for title[index] in [T.tr("表示", "Appearance"), T.tr("通知", "Notifications"), T.tr("前回の記憶", "Remember"), T.tr("設定の移行", "Transfer"), T.tr("アプリ情報", "About")]: PageTab {
-                text: title; selected: root.section == index; activated => { root.section = index; } navigate(delta) => { root.section = mod(root.section + delta + 5, 5); }
+            for title[index] in [T.tr("表示", "Appearance"), T.tr("通知", "Notifications"), T.tr("前回の記憶", "Remember"), T.tr("設定の移行", "Transfer"), T.tr("アプリ情報", "About"), T.tr("保存先", "Data location")]: PageTab {
+                text: title; selected: root.section == index; activated => { root.section = index; } navigate(delta) => { root.section = mod(root.section + delta + 6, 6); }
             }
         }
         ScrollView { VerticalBox {
@@ -80,6 +83,15 @@ export component PreferencesPage inherits Rectangle {
                     ActionButton { enabled: !AppPreferences.transfer-busy; text: T.tr("キャンセル", "Cancel"); activated => { AppPreferences.cancel-import(); } }
                     ActionButton { enabled: !AppPreferences.transfer-busy; text: T.tr("この設定を適用", "Apply these settings"); primary: true; activated => { AppPreferences.apply-import(); } }
                 }
+            }
+            if root.section == 5: VerticalBox {
+                padding: 0px; spacing: 16px;
+                Text { text: T.tr("管理データの保存先", "Management data directory"); color: Theme.foreground; font-size: 16px; font-weight: 600; }
+                Text { text: AppPreferences.data-path; color: Theme.foreground; wrap: word-wrap; }
+                Text { text: T.tr("ゲームの登録情報・アプリ設定・作業記録を保存する場所です。ゲーム本体・ワールド・バックアップの保存先はサーバー設定で変更します。", "Stores server registrations, app preferences and operation records. Change game, world and backup paths in Server settings."); color: Theme.muted; wrap: word-wrap; }
+                Text { text: T.tr("保存先を選ぶ画面へ移ります。選択後はそのフォルダーの管理データで画面を開き直します。元のデータは移動・削除しません。", "Opens the directory chooser, then reopens the manager with that directory's data. Original data is never moved or deleted."); color: Theme.muted; wrap: word-wrap; }
+                ActionButton { text: T.tr("保存先を選ぶ…", "Choose data directory…"); icon: "folder"; enabled: AppPreferences.data-can-change; activated => { AppPreferences.change-data-directory(); } }
+                if !AppPreferences.data-can-change: Text { text: T.tr("すべてのサーバーの停止と、実行中の作業の完了を確認してから変更できます。状態不明の場合も先に確認してください。", "Stop all servers and wait for jobs to finish before changing this location. Unknown server states must also be resolved first."); color: Theme.muted; wrap: word-wrap; }
             }
             if root.section == 4: VerticalBox {
                 padding: 0px; spacing: 16px;

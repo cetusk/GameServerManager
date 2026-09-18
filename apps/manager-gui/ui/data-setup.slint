@@ -1,0 +1,45 @@
+import { VerticalBox, HorizontalBox, LineEdit, ScrollView } from "std-widgets.slint";
+import { Theme, T, ActionButton, ActivityIcon } from "components.slint";
+
+export component DataSetupWindow inherits Window {
+    title: "GameServerManager";
+    icon: @image-url("../../../assets/app-icon-256.png");
+    background: Theme.background;
+    preferred-width: 760px; preferred-height: 580px;
+    min-width: 620px; min-height: 540px;
+    in-out property <string> folder;
+    in property <string> error;
+    in property <bool> busy;
+    in property <bool> changing;
+    in property <bool> local-mode: true;
+    callback browse();
+    callback accept();
+    callback cancel();
+    VerticalBox {
+        padding: 28px; spacing: 20px;
+        Image { source: @image-url("../../../assets/logo-dark-trimmed.png"); height: 45px; image-fit: contain; }
+        Text { text: T.tr("アプリ設定 · 管理データの保存先", "App settings · Management data"); font-size: 22px; font-weight: 600; color: Theme.foreground; }
+        ScrollView { VerticalBox { padding: 0px; spacing: 16px; alignment: start;
+            Text { text: root.changing ? T.tr("保存先を選び直します。キャンセルすると現在の管理画面に戻ります。", "Choose a data directory. Cancel returns to your current manager.") : T.tr("はじめに、管理データを保存するフォルダーを選んでください。", "To get started, choose a folder for management data."); color: Theme.foreground; wrap: word-wrap; }
+            Text { text: T.tr("ゲームの登録情報・アプリ設定・作業記録を保存します。ゲーム本体・ワールド・バックアップの保存先は、後からサーバー設定で指定します。", "Stores server registrations, app preferences and operation records. Set game installation, world and backup locations later in Server settings."); color: Theme.muted; wrap: word-wrap; }
+            Text { text: T.tr("管理データのフォルダー（絶対パス）", "Management data folder (absolute path)"); color: Theme.foreground; }
+            HorizontalBox { padding: 0px; spacing: 10px;
+                LineEdit { text <=> root.folder; enabled: !root.busy; placeholder-text: "D:\\GameServerManagerData"; }
+                ActionButton { width: 116px; horizontal-stretch: 0; text: T.tr("参照…", "Browse…"); icon: "folder"; enabled: !root.busy; activated => { root.browse(); } }
+            }
+            Text { text: T.tr("新しいフォルダーなら新規に開始し、既存の管理データがあるフォルダーならその内容を開きます。元のデータは移動・削除しません。", "An empty folder starts a new setup; an existing management folder opens its data. Original data is never moved or deleted."); color: Theme.muted; wrap: word-wrap; }
+            Text { text: root.local-mode ? T.tr("選択した保存先は、次回のexe直接起動でも使用します。", "This location will also be used when you next open the EXE directly.") : T.tr("模擬モードです。実管理用の保存先の記憶は変更しません。", "Mock mode: the saved local data location will not change."); color: Theme.muted; wrap: word-wrap; }
+            if root.error != "": Text { text: root.error; color: #ff9daa; wrap: word-wrap; }
+        } }
+        if root.busy: HorizontalBox { padding: 0px; alignment: start;
+            ActivityIcon { phase: "running"; }
+            Text { text: T.tr("保存先を確認しています…", "Checking data location…"); color: Theme.accent; }
+        }
+        HorizontalBox { padding: 0px; spacing: 10px;
+            ActionButton { text: T.english ? "日本語" : "English"; enabled: !root.busy; activated => { T.english = !T.english; } }
+            Rectangle { background: transparent; horizontal-stretch: 1; }
+            ActionButton { text: root.changing ? T.tr("キャンセル", "Cancel") : T.tr("終了", "Exit"); enabled: !root.busy; activated => { root.cancel(); } }
+            ActionButton { text: T.tr("この保存先で開く", "Open this directory"); primary: true; enabled: !root.busy && root.folder != ""; activated => { root.accept(); } }
+        }
+    }
+}
