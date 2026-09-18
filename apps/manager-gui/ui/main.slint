@@ -53,7 +53,7 @@ component GameCard inherits Rectangle {
 }
 
 export component MainWindow inherits Window {
-    icon: @image-url("../../../assets/generated/app-icon-256.png");
+    icon: @image-url("../../../assets/app-icon-256.png");
     title: "GameServerManager";
     in property <bool> local-mode;
     in property <bool> setup-needed;
@@ -150,7 +150,7 @@ export component MainWindow inherits Window {
                 width: 232px; background: Theme.sidebar;
                 VerticalBox {
                     padding: 18px; spacing: 12px;
-                    Image { source: @image-url("../../../assets/generated/logo-dark-trimmed.png"); height: 74px; image-fit: contain; }
+                    Image { source: @image-url("../../../assets/logo-dark-trimmed.png"); height: 74px; image-fit: contain; }
                     Text { text: T.tr("管理するゲーム", "Games you manage"); color: Theme.muted; font-size: 12px; }
                     ActionButton { enabled: root.controls-enabled; text: T.tr("使用中のゲーム", "Your games"); activated => { root.open-overview(); } }
                     ActionButton { enabled: root.controls-enabled; text: T.tr("ゲームを追加・変更", "Add / change games"); icon: "plus"; activated => { root.edit-selection(); } }

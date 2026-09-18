@@ -33,10 +33,10 @@ try {
     $gameManagerIconDir = Join-Path $gameManagerDist 'apps\manager-gui\assets\game-icons'
     New-Item -ItemType Directory -Force $gameManagerIconDir | Out-Null
     Copy-Item 'apps\manager-gui\assets\game-icons\*' $gameManagerIconDir -Force
-    New-Item -ItemType Directory -Force (Join-Path $gameManagerDist 'assets\generated') | Out-Null
-    Copy-Item 'assets\generated\logo-dark-trimmed.png' (Join-Path $gameManagerDist 'assets\generated') -Force
+    New-Item -ItemType Directory -Force (Join-Path $gameManagerDist 'assets') | Out-Null
+    Copy-Item 'assets\logo-dark-trimmed.png' (Join-Path $gameManagerDist 'assets') -Force
     # Build the ZIP from exact files, never from directories containing old user data.
-    $gameManagerRelativeFiles = @('manager-gui.exe','gsm-ctrlc-helper.exe','start-manager.ps1','README.md','README.en.md','CHANGELOG.md','LICENSE','THIRD_PARTY_NOTICES.md','Cargo.lock','licenses/Slint-Royalty-free-2.0.md','assets/generated/logo-dark-trimmed.png')
+    $gameManagerRelativeFiles = @('manager-gui.exe','gsm-ctrlc-helper.exe','start-manager.ps1','README.md','README.en.md','CHANGELOG.md','LICENSE','THIRD_PARTY_NOTICES.md','Cargo.lock','licenses/Slint-Royalty-free-2.0.md','assets/logo-dark-trimmed.png')
     $gameManagerRelativeFiles += $gameManagerDocs | ForEach-Object { "docs/$_" }
     $gameManagerRelativeFiles += @('valheim','windrose','conan','arksa') | ForEach-Object { "crates/games/$_/LICENSE" }
     $gameManagerRelativeFiles += @('SOURCES.md','arksa.jpg','valheim.jpg','windrose.jpg','satisfactory.jpg','conan.jpg') | ForEach-Object { "apps/manager-gui/assets/game-icons/$_" }

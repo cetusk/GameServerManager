@@ -1,3 +1,4 @@
+# Git manages .git internally; .github/ is intentionally tracked for CI.
 # Rust builds and distribution staging
 /target/
 /dist/
@@ -48,8 +49,6 @@ AGENTS.override.md
 /crates/games/*/LAUNCH_REGISTRATION.md
 /preview-design.ps1
 /tools/inspect_archives.py
-/assets/README.txt
-/assets/verification.json
 /codex_sandbox.bat
 
 # Editor, OS and Python temporary files

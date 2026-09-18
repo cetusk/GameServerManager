@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/generated/logo-dark-trimmed.png" alt="GameServerManager" width="360">
+  <img src="assets/logo-dark-trimmed.png" alt="GameServerManager" width="360">
 </p>
 
 # GameServerManager v0.1.0
