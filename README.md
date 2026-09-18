@@ -2,11 +2,13 @@
   <img src="assets/logo-dark-trimmed.png" alt="GameServerManager" width="360">
 </p>
 
-# GameServerManager v0.1.0
+# GameServerManager: Unified Game Server Management Tool
 
 **日本語** | [English](README.en.md)
 
 Windows上のゲームサーバーを、ひとつのGUIから管理するアプリです。使用するゲームを選び、同じPC内にあるサーバーの起動・停止・設定・バックアップを操作できます。
+
+今後も継続的に、ほかのゲームのサーバー管理機能を追加していく予定です。
 
 ## 主な機能
 
@@ -17,7 +19,7 @@ Windows上のゲームサーバーを、ひとつのGUIから管理するアプ�
 - サーバーログの表示・全文コピー、処理状況と作業履歴の表示
 - ダークテーマ3種類、日本語・英語の切り替え
 
-v0.1.0は初期開発版です。Valheimでは実機での起動・参加・正常停止・バックアップ作成を確認しています。ほかのゲームの実機操作や復元、新規作成からの一連の動作は未確認です。[対応状況と制約](docs/compatibility.md)をご確認ください。
+現状，Valheimでは実機での起動・参加・正常停止・バックアップ作成を確認しています。ほかのゲームの実機操作や復元、新規作成からの一連の動作は未確認です。[対応状況と制約](docs/compatibility.md)をご確認ください。
 
 ## 動作環境
 

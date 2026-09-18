@@ -2,11 +2,13 @@
   <img src="assets/logo-dark-trimmed.png" alt="GameServerManager" width="360">
 </p>
 
-# GameServerManager v0.1.0
+# GameServerManager: Unified Game Server Management Tool
 
 [日本語](README.md) | **English**
 
 Manage game servers on Windows from a single desktop application. Select the games you use, then start, stop, configure and back up servers on the same PC.
+
+We plan to continue adding server management support for more games.
 
 ## Features
 
@@ -17,7 +19,7 @@ Manage game servers on Windows from a single desktop application. Select the gam
 - Server logs with full-log copying, operation status and task history
 - Three dark themes and Japanese / English interface languages
 
-v0.1.0 is an early development release. Valheim startup, joining, graceful shutdown and backup creation have been verified on a real server. Other games, restoration and the full new-server setup flow have not yet been verified on real Windows servers. See [support status and limitations](docs/compatibility.md).
+Currently, Valheim startup, joining, graceful shutdown and backup creation have been verified on a real server. Other games, restoration and the full new-server setup flow have not yet been verified on real Windows servers. See [support status and limitations](docs/compatibility.md).
 
 ## Requirements
 
