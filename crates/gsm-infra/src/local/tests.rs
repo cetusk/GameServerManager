@@ -43,7 +43,7 @@ fn command_waits_for_monitor_but_other_commands_are_rejected() {
         ),
     )
     .unwrap();
-    let full = read_full_log(&spec).unwrap();
+    let full = logs::full(&spec, &spec.log_file).unwrap();
     assert!(full.starts_with("first line"));
     assert!(full.ends_with("last line"));
     assert!(full.len() > 32768);
@@ -52,7 +52,37 @@ fn command_waits_for_monitor_but_other_commands_are_rejected() {
         .unwrap()
         .set_len(128 * 1024 * 1024 + 1)
         .unwrap();
-    assert!(read_full_log(&spec).is_err());
+    assert!(logs::full(&spec, &spec.log_file).is_err());
+    fs::remove_file(&spec.log_file).unwrap();
+    let update_log = temp.path().join("steamcmd.log");
+    let old = "ERROR: previous attempt\n";
+    fs::write(
+        &update_log,
+        format!("{old}ERROR: new failure fixture-secret\n"),
+    )
+    .unwrap();
+    let failure = logs::update_failure(&spec, &update_log, old.len() as u64, "exit code: 7");
+    assert!(failure.contains("exit code: 7"));
+    assert!(failure.contains("new failure"));
+    assert!(failure.contains(&update_log.display().to_string()));
+    assert!(!failure.contains("previous attempt"));
+    assert!(!failure.contains("fixture-secret"));
+    let copied = logs::combined(&spec, &update_log, "update failed fixture-secret").unwrap();
+    assert!(copied.contains("Manager operations"));
+    assert!(copied.contains("No log yet"));
+    assert!(copied.contains("previous attempt"));
+    assert!(copied.contains("new failure"));
+    assert!(!copied.contains("fixture-secret"));
+    let size = fs::metadata(&update_log).unwrap().len();
+    let no_output = logs::update_failure(&spec, &update_log, size, "exit code: 1");
+    assert!(no_output.contains("No output from this attempt"));
+    assert!(!no_output.contains("new failure"));
+    fs::write(
+        &update_log,
+        format!("{}fixture-secret\nlast line", "x".repeat(9000)),
+    )
+    .unwrap();
+    assert_eq!(logs::tail(&spec, &update_log, 0).unwrap(), "last line");
     // Missing config stops execution immediately after lock acquisition, before
     // process inspection or server IO on either Windows or Linux.
     let entry = Entry {

@@ -99,6 +99,8 @@ New server configurations start with the saved shared path, or the suggested pat
 
 This downloads the SteamCMD bootstrap executable. SteamCMD initializes and updates itself when you first use **Update / install** for a game server. Use of the same SteamCMD installation is serialized. See the [SteamCMD guide](docs/steamcmd.md) for details and path references.
 
+The manager verifies SteamCMD initialization and self-update before updating the game server. If an update fails, check the operation history and the SteamCMD update log in **Logs**. **Copy full log** includes the update log as well.
+
 ## Data handling
 
 ### Management data and game server configuration

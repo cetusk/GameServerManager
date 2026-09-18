@@ -378,7 +378,7 @@ export component MainWindow inherits Window {
                                         Text { text: T.tr("サーバーログ", "Server log"); color: Theme.foreground; font-size: 16px; vertical-alignment: center; horizontal-stretch: 1; }
                                         ActionButton { text: root.copy-busy ? T.tr("読み込み中…", "Reading…") : T.tr("全文をコピー", "Copy full log"); icon: "copy"; enabled: root.controls-enabled && (!root.copy-busy); activated => { root.copy-log(); } }
                                     }
-                                    Text { text: T.tr("表示は末尾部分です。全文コピーは対象ログファイル全体を取得します（機密値は非表示）。", "The view shows recent lines. Copy reads the entire log file (secrets are redacted)."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
+                                    Text { text: T.tr("表示は末尾部分です。全文コピーには操作記録・サーバーログ・SteamCMD更新ログを含みます（機密値は非表示）。", "The view shows recent lines. Copy includes operations, the full server log and the SteamCMD update log (secrets are redacted)."); color: Theme.muted; font-size: 12px; wrap: word-wrap; }
                                     TextEdit { text: root.logs; read-only: true; }
                                 }
                             }

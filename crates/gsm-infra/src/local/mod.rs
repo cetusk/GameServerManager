@@ -1,10 +1,12 @@
 mod diagnostics;
 mod installation;
+mod logs;
 mod network;
 pub mod paths;
 pub mod process;
 pub mod settings;
 pub mod snapshots;
+mod updater;
 use crate::registration::ConfigSource;
 use fs2::FileExt;
 use gsm_domain::{
@@ -446,38 +448,18 @@ impl LocalBackend {
                 entry
                     .restart_required
                     .store(true, std::sync::atomic::Ordering::SeqCst);
-                let output = OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(entry.state.join("steamcmd.log"))
-                    .map_err(err)?;
-                let status = std::process::Command::new(&entry.spec.steamcmd)
-                    .current_dir(
-                        entry
-                            .spec
-                            .steamcmd
-                            .parent()
-                            .ok_or("SteamCMD folder is missing")?,
-                    )
-                    .args(["+force_install_dir"])
-                    .arg(&entry.spec.cwd)
-                    .args([
-                        "+login",
-                        "anonymous",
-                        "+app_update",
-                        &entry.spec.steam_app_id.to_string(),
-                        "validate",
-                        "+quit",
-                    ])
-                    .stdout(output.try_clone().map_err(err)?)
-                    .stderr(output)
-                    .status()
-                    .map_err(|_| "SteamCMD を実行できません")?;
-                if !status.success() {
-                    return Err(
-                        "SteamCMD の更新に失敗しました。steamcmd.log を確認してください".into(),
-                    );
-                }
+                let log_path = entry.state.join("steamcmd.log");
+                Self::event(
+                    entry,
+                    format!(
+                        "SteamCMD: {}\n更新ログ / Update log: {}",
+                        entry.spec.steamcmd.display(),
+                        log_path.display()
+                    ),
+                );
+                updater::run(&entry.spec, &log_path, |message| {
+                    Self::event(entry, message)
+                })?;
                 Ok(())
             }
             _ => Err("未対応の操作です".into()),
@@ -494,23 +476,6 @@ impl LocalBackend {
         result
     }
 }
-fn read_full_log(spec: &LocalServer) -> Result<String, String> {
-    validate(&spec.log_file)?;
-    let mut file = File::open(&spec.log_file).map_err(err)?;
-    let meta = file.metadata().map_err(err)?;
-    if !meta.is_file() {
-        return Err("Log must be a regular file".into());
-    }
-    if meta.len() > 128 * 1024 * 1024 {
-        return Err("Log exceeds 128 MiB; open it directly / ログが128 MiBを超えています。ログファイルを直接開いてください".into());
-    }
-    let mut bytes = Vec::new();
-    file.by_ref()
-        .take(meta.len())
-        .read_to_end(&mut bytes)
-        .map_err(err)?;
-    Ok(spec.redact(&String::from_utf8_lossy(&bytes)))
-}
 impl GameBackend for LocalBackend {
     fn full_log(&self, instance: &Instance) -> Result<String, String> {
         let entry = self
@@ -520,7 +485,15 @@ impl GameBackend for LocalBackend {
         if entry.spec.instance != *instance {
             return Err("Server mismatch / 対象が一致しません".into());
         }
-        read_full_log(&entry.spec)
+        let events = entry
+            .events
+            .lock()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n");
+        logs::combined(&entry.spec, &entry.state.join("steamcmd.log"), &events)
     }
 
     fn is_local(&self) -> bool {
@@ -604,6 +577,14 @@ impl GameBackend for LocalBackend {
                     .rev()
                     .map(|s| entry.spec.redact(s)),
             );
+        }
+        let update_log = entry.state.join("steamcmd.log");
+        if update_log.exists() {
+            logs.push(format!("SteamCMD 更新ログ（過去の更新を含みます） / SteamCMD update log (includes previous updates): {}", update_log.display()));
+            match logs::tail(&entry.spec, &update_log, 0) {
+                Ok(text) => logs.extend(text.lines().map(str::to_owned)),
+                Err(e) => logs.push(entry.spec.redact(&e)),
+            }
         }
         // Old log lines cannot establish readiness for the current process.
         let readiness = Readiness::Unknown;
